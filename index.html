@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>createTextEditor Demo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <p class="hero__eyebrow">Custom Rich Text Editor</p>
+      <h1 class="hero__title">createTextEditor()</h1>
+      <p class="hero__copy">
+        編輯器是表單中的一個欄位，初始化方式接近 `UE.getEditor('editor')`，
+        但這個版本是我們自己開發的原生富文本編輯器。
+      </p>
+    </section>
+
+    <section class="card">
+      <form id="article-form" class="form">
+        <div class="field">
+          <label class="field__label" for="title">文章標題</label>
+          <input id="title" name="title" class="field__input" type="text" placeholder="請輸入文章標題">
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="editor">文章內容</label>
+          <textarea id="editor" name="editor">
+<h2>開始撰寫內容</h2>
+<p>這個欄位原本是 textarea，經過 createTextEditor() 初始化後，就會變成富文本編輯器。</p>
+<p>送出時仍然會把 HTML 內容同步回原本的 textarea，再透過 Ajax 傳到 PHP。</p>
+          </textarea>
+        </div>
+
+        <div class="form__actions">
+          <button class="button" type="submit">Ajax 送出表單</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="response-panel" class="card response" hidden>
+      <p class="response__eyebrow">Server Response</p>
+      <h2 id="response-title" class="response__title"></h2>
+      <p id="response-meta" class="response__meta"></p>
+      <div id="response-content" class="response__content"></div>
+    </section>
+  </main>
+
+  <script src="editor.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
