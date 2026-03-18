@@ -1,204 +1,297 @@
-function createTextEditor(options = {}) {
-  const mountPoint = resolveMountPoint(options.target);
-  const fieldName = options.fieldName || "content";
-  const titleName = options.titleName || "title";
-  const initialTitle = options.initialTitle || "";
-  const initialContent = normalizeInitialContent(options.initialContent || "");
-  const titlePlaceholder = options.titlePlaceholder || "請輸入標題";
-  const placeholder = options.placeholder || "請輸入內容...";
+(function () {
+  function createTextEditor(options = {}) {
+    const root = resolveElement(options.target);
+    const sourceField = resolveElement(options.sourceField);
+    const uploadUrl = options.uploadUrl || "upload.php";
+    const placeholder = options.placeholder || "請輸入要發佈的內容...";
 
-  const shell = document.createElement("section");
-  shell.className = "editor-shell";
-  shell.innerHTML = `
-    <div class="editor-toolbar">
-      <div class="toolbar-group">
-        <button type="button" class="toolbar-button" data-command="bold"><strong>B</strong></button>
-        <button type="button" class="toolbar-button" data-command="italic"><em>I</em></button>
-        <button type="button" class="toolbar-button" data-command="insertUnorderedList">清單</button>
-        <button type="button" class="toolbar-button" data-command="formatBlock" data-value="h2">標題</button>
-        <button type="button" class="toolbar-button" data-command="formatBlock" data-value="blockquote">引用</button>
-        <button type="button" class="toolbar-button" data-action="link">連結</button>
-      </div>
-      <div class="toolbar-group">
-        <select class="toolbar-select" data-role="font-size" aria-label="字體大小">
-          <option value="16">字級 16</option>
-          <option value="18" selected>字級 18</option>
-          <option value="20">字級 20</option>
-        </select>
-        <button type="button" class="toolbar-button" data-action="clear">清空</button>
-      </div>
-    </div>
-    <div class="editor-layout">
-      <div class="editor-main">
-        <input class="editor-title" type="text">
-        <div class="editor-surface" contenteditable="true"></div>
-        <input type="hidden" data-role="title-field">
-        <textarea hidden data-role="content-field"></textarea>
-      </div>
-      <aside class="editor-side">
-        <div class="stat-card">
-          <p class="card-title">字數統計</p>
-          <p class="stat-value" data-role="word-count">0</p>
-          <p class="stat-copy">送出前可快速確認內容長度。</p>
+    const shell = document.createElement("section");
+    shell.className = "text-editor";
+    shell.innerHTML = `
+      <div class="text-editor__toolbar">
+        <div class="text-editor__group">
+          <button type="button" class="tool-button" data-command="undo">復原</button>
+          <button type="button" class="tool-button" data-command="redo">重做</button>
         </div>
-        <div class="stat-card">
-          <p class="card-title">段落數</p>
-          <p class="stat-value" data-role="paragraph-count">0</p>
-          <p class="stat-copy">幫助使用者檢查文章結構是否完整。</p>
+        <div class="text-editor__group">
+          <select class="tool-select" data-role="block">
+            <option value="p">段落</option>
+            <option value="h2">標題 2</option>
+            <option value="h3">標題 3</option>
+            <option value="blockquote">引用</option>
+          </select>
+          <select class="tool-select" data-role="font-size">
+            <option value="16">16px</option>
+            <option value="18" selected>18px</option>
+            <option value="22">22px</option>
+          </select>
         </div>
-        <div class="preview-card">
-          <p class="card-title">HTML 預覽</p>
-          <h2 class="preview-title" data-role="preview-title"></h2>
-          <div class="preview-body" data-role="preview-body"></div>
-          <p class="preview-copy">送出時，會將這份 HTML 內容寫入隱藏欄位供 PHP 接收。</p>
+        <div class="text-editor__group">
+          <button type="button" class="tool-button" data-command="bold"><strong>B</strong></button>
+          <button type="button" class="tool-button" data-command="italic"><em>I</em></button>
+          <button type="button" class="tool-button" data-command="underline"><u>U</u></button>
+          <button type="button" class="tool-button" data-command="strikeThrough"><s>S</s></button>
         </div>
-      </aside>
-    </div>
-  `;
+        <div class="text-editor__group">
+          <button type="button" class="tool-button" data-command="justifyLeft">靠左</button>
+          <button type="button" class="tool-button" data-command="justifyCenter">置中</button>
+          <button type="button" class="tool-button" data-command="justifyRight">靠右</button>
+        </div>
+        <div class="text-editor__group">
+          <button type="button" class="tool-button" data-command="insertUnorderedList">清單</button>
+          <button type="button" class="tool-button" data-command="insertOrderedList">編號</button>
+          <button type="button" class="tool-button" data-action="link">連結</button>
+          <button type="button" class="tool-button" data-action="image">圖片</button>
+          <button type="button" class="tool-button" data-action="table">表格</button>
+          <button type="button" class="tool-button" data-action="code">原始碼</button>
+          <button type="button" class="tool-button" data-action="clear">清空</button>
+        </div>
+      </div>
+      <div class="text-editor__body">
+        <div class="text-editor__surface" contenteditable="true" data-placeholder=""></div>
+        <textarea class="text-editor__source" hidden></textarea>
+      </div>
+      <div class="text-editor__status">
+        <span data-role="words">0 字</span>
+        <span data-role="blocks">0 段</span>
+        <span data-role="mode">視覺模式</span>
+      </div>
+    `;
 
-  const titleInput = shell.querySelector(".editor-title");
-  const editorSurface = shell.querySelector(".editor-surface");
-  const titleField = shell.querySelector('[data-role="title-field"]');
-  const contentField = shell.querySelector('[data-role="content-field"]');
-  const wordCount = shell.querySelector('[data-role="word-count"]');
-  const paragraphCount = shell.querySelector('[data-role="paragraph-count"]');
-  const previewTitle = shell.querySelector('[data-role="preview-title"]');
-  const previewBody = shell.querySelector('[data-role="preview-body"]');
-  const fontSizeSelect = shell.querySelector('[data-role="font-size"]');
-  const clearButton = shell.querySelector('[data-action="clear"]');
-  const linkButton = shell.querySelector('[data-action="link"]');
+    const surface = shell.querySelector(".text-editor__surface");
+    const source = shell.querySelector(".text-editor__source");
+    const wordsNode = shell.querySelector('[data-role="words"]');
+    const blocksNode = shell.querySelector('[data-role="blocks"]');
+    const modeNode = shell.querySelector('[data-role="mode"]');
+    const blockSelect = shell.querySelector('[data-role="block"]');
+    const fontSizeSelect = shell.querySelector('[data-role="font-size"]');
+    let sourceMode = false;
 
-  titleInput.name = titleName;
-  titleInput.placeholder = titlePlaceholder;
-  titleInput.value = initialTitle;
+    surface.dataset.placeholder = placeholder;
+    surface.innerHTML = normalizeHtml(sourceField.value);
+    source.value = surface.innerHTML;
 
-  titleField.name = titleName;
-  contentField.name = fieldName;
-  editorSurface.dataset.placeholder = placeholder;
-  editorSurface.innerHTML = initialContent;
+    function focusSurface() {
+      if (!sourceMode) {
+        surface.focus();
+      }
+    }
 
-  const sync = () => {
-    const html = cleanupEditorHtml(editorSurface.innerHTML);
-    const plainText = editorSurface.textContent.trim();
-    const paragraphs = extractParagraphs(editorSurface);
+    function syncFromSurface() {
+      const cleanHtml = cleanupEditorHtml(surface.innerHTML);
+      surface.innerHTML = cleanHtml;
+      source.value = cleanHtml;
+      sourceField.value = cleanHtml;
+      updateStatus();
+    }
 
-    titleField.value = titleInput.value;
-    contentField.value = html;
-    previewTitle.textContent = titleInput.value.trim() || "未命名文章";
-    previewBody.innerHTML = html || "<p>尚未輸入內容。</p>";
-    wordCount.textContent = String(plainText ? plainText.split(/\s+/).length : 0);
-    paragraphCount.textContent = String(paragraphs);
-  };
+    function syncFromSource() {
+      const cleanHtml = cleanupEditorHtml(source.value);
+      source.value = cleanHtml;
+      surface.innerHTML = cleanHtml;
+      sourceField.value = cleanHtml;
+      updateStatus();
+    }
 
-  shell.querySelectorAll("[data-command]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const command = button.dataset.command;
-      const value = button.dataset.value || null;
-      editorSurface.focus();
-      document.execCommand(command, false, value);
-      sync();
+    function updateStatus() {
+      const text = (sourceMode ? source.value : surface.textContent).trim();
+      const wordCount = text ? text.split(/\s+/).length : 0;
+      const blockCount = countBlocks(surface);
+      wordsNode.textContent = `${wordCount} 字`;
+      blocksNode.textContent = `${blockCount} 段`;
+      modeNode.textContent = sourceMode ? "原始碼模式" : "視覺模式";
+    }
+
+    function runCommand(command, value) {
+      focusSurface();
+      document.execCommand(command, false, value || null);
+      syncFromSurface();
+    }
+
+    shell.querySelectorAll("[data-command]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (sourceMode) {
+          return;
+        }
+        runCommand(button.dataset.command);
+      });
     });
-  });
 
-  linkButton.addEventListener("click", () => {
-    const url = window.prompt("請輸入連結網址");
-    if (!url) {
+    blockSelect.addEventListener("change", () => {
+      if (sourceMode) {
+        return;
+      }
+      runCommand("formatBlock", blockSelect.value);
+    });
+
+    fontSizeSelect.addEventListener("change", () => {
+      surface.style.fontSize = `${fontSizeSelect.value}px`;
+    });
+
+    shell.querySelector('[data-action="link"]').addEventListener("click", () => {
+      if (sourceMode) {
+        return;
+      }
+      const url = window.prompt("請輸入連結網址", "https://");
+      if (!url) {
+        return;
+      }
+      runCommand("createLink", url);
+    });
+
+    shell.querySelector('[data-action="table"]').addEventListener("click", () => {
+      if (sourceMode) {
+        return;
+      }
+      focusSurface();
+      const tableHtml = "<table><tbody><tr><th>標題 1</th><th>標題 2</th></tr><tr><td>內容</td><td>內容</td></tr></tbody></table><p></p>";
+      document.execCommand("insertHTML", false, tableHtml);
+      syncFromSurface();
+    });
+
+    shell.querySelector('[data-action="code"]').addEventListener("click", () => {
+      sourceMode = !sourceMode;
+      source.hidden = !sourceMode;
+      surface.hidden = sourceMode;
+      if (sourceMode) {
+        source.value = sourceField.value;
+      } else {
+        syncFromSource();
+      }
+      updateStatus();
+    });
+
+    shell.querySelector('[data-action="clear"]').addEventListener("click", () => {
+      surface.innerHTML = "";
+      source.value = "";
+      sourceField.value = "";
+      updateStatus();
+      focusSurface();
+    });
+
+    shell.querySelector('[data-action="image"]').addEventListener("click", async () => {
+      if (sourceMode) {
+        return;
+      }
+      const picker = document.createElement("input");
+      picker.type = "file";
+      picker.accept = "image/jpeg,image/png,image/gif,image/webp";
+      picker.addEventListener("change", async () => {
+        const file = picker.files && picker.files[0];
+        if (!file) {
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("upload", file);
+
+        try {
+          const response = await fetch(uploadUrl, {
+            method: "POST",
+            body: formData
+          });
+          const data = await response.json();
+          if (!response.ok || !data.url) {
+            throw new Error((data.error && data.error.message) || "圖片上傳失敗");
+          }
+
+          focusSurface();
+          document.execCommand(
+            "insertHTML",
+            false,
+            `<p><img src="${escapeAttribute(data.url)}" alt="${escapeAttribute(file.name)}"></p>`
+          );
+          syncFromSurface();
+        } catch (error) {
+          window.alert(error.message || "圖片上傳失敗");
+        }
+      });
+      picker.click();
+    });
+
+    surface.addEventListener("input", syncFromSurface);
+    source.addEventListener("input", syncFromSource);
+
+    root.replaceChildren(shell);
+    surface.style.fontSize = `${fontSizeSelect.value}px`;
+    updateStatus();
+
+    return {
+      element: shell,
+      getHtml: () => sourceField.value,
+      setHtml: (html) => {
+        const value = normalizeHtml(html);
+        surface.innerHTML = value;
+        source.value = value;
+        sourceField.value = value;
+        updateStatus();
+      }
+    };
+  }
+
+  function resolveElement(target) {
+    if (target instanceof HTMLElement || target instanceof HTMLTextAreaElement) {
+      return target;
+    }
+    if (typeof target === "string") {
+      const element = document.querySelector(target);
+      if (element) {
+        return element;
+      }
+    }
+    throw new Error("createTextEditor: target element not found.");
+  }
+
+  function normalizeHtml(value) {
+    const html = String(value || "").trim();
+    return html === "" ? "<p></p>" : html;
+  }
+
+  function cleanupEditorHtml(html) {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = html;
+
+    wrapper.querySelectorAll("script, style, iframe").forEach((node) => node.remove());
+
+    wrapper.querySelectorAll("*").forEach((node) => {
+      Array.from(node.attributes).forEach((attribute) => {
+        if (attribute.name.toLowerCase().startsWith("on")) {
+          node.removeAttribute(attribute.name);
+        }
+      });
+    });
+
+    return wrapper.innerHTML.trim() || "<p></p>";
+  }
+
+  function countBlocks(surface) {
+    const blocks = surface.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, blockquote, table");
+    const used = Array.from(blocks).filter((node) => node.textContent.trim() !== "" || node.tagName === "TABLE");
+    return used.length || 0;
+  }
+
+  function escapeAttribute(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  window.createTextEditor = createTextEditor;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const sourceField = document.querySelector("#editor-source");
+    if (!sourceField) {
       return;
     }
 
-    editorSurface.focus();
-    document.execCommand("createLink", false, url);
-    sync();
-  });
-
-  clearButton.addEventListener("click", () => {
-    titleInput.value = "";
-    editorSurface.innerHTML = "";
-    sync();
-    editorSurface.focus();
-  });
-
-  fontSizeSelect.addEventListener("change", () => {
-    editorSurface.style.fontSize = `${fontSizeSelect.value}px`;
-  });
-
-  titleInput.addEventListener("input", sync);
-  editorSurface.addEventListener("input", sync);
-  editorSurface.addEventListener("blur", () => {
-    editorSurface.innerHTML = cleanupEditorHtml(editorSurface.innerHTML);
-    sync();
-  });
-
-  mountPoint.replaceChildren(shell);
-  editorSurface.style.fontSize = `${fontSizeSelect.value}px`;
-  sync();
-
-  return {
-    element: shell,
-    getTitle: () => titleInput.value,
-    getContent: () => contentField.value,
-    setTitle: (value) => {
-      titleInput.value = value;
-      sync();
-    },
-    setContent: (value) => {
-      editorSurface.innerHTML = normalizeInitialContent(value);
-      sync();
-    },
-    clear: () => {
-      titleInput.value = "";
-      editorSurface.innerHTML = "";
-      sync();
-    }
-  };
-}
-
-function resolveMountPoint(target) {
-  if (target instanceof HTMLElement) {
-    return target;
-  }
-
-  if (typeof target === "string") {
-    const element = document.querySelector(target);
-    if (element) {
-      return element;
-    }
-  }
-
-  throw new Error("createTextEditor: target element not found.");
-}
-
-function normalizeInitialContent(value) {
-  const trimmed = String(value).trim();
-  return trimmed === "" ? "" : trimmed;
-}
-
-function cleanupEditorHtml(html) {
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = html;
-
-  wrapper.querySelectorAll("script, style").forEach((node) => node.remove());
-
-  wrapper.querySelectorAll("*").forEach((node) => {
-    [...node.attributes].forEach((attribute) => {
-      const name = attribute.name.toLowerCase();
-      if (name.startsWith("on")) {
-        node.removeAttribute(attribute.name);
-      }
+    sourceField.hidden = true;
+    createTextEditor({
+      target: "#editor-root",
+      sourceField: sourceField,
+      uploadUrl: "upload.php",
+      placeholder: sourceField.getAttribute("placeholder") || "請輸入要發佈的內容..."
     });
   });
-
-  return wrapper.innerHTML.trim();
-}
-
-function extractParagraphs(editorSurface) {
-  const blocks = editorSurface.querySelectorAll("p, div, li, blockquote, h1, h2, h3, h4, h5, h6");
-  const count = [...blocks].filter((block) => block.textContent.trim() !== "").length;
-  if (count > 0) {
-    return count;
-  }
-
-  return editorSurface.textContent.trim() === "" ? 0 : 1;
-}
-
-window.createTextEditor = createTextEditor;
+})();
