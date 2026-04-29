@@ -164,7 +164,7 @@
       });
 
       this.source.addEventListener("input", () => {
-        this.textarea.value = this.cleanupHtml(this.source.value);
+        this.textarea.value = minifyHtml(this.cleanupHtml(this.source.value));
         this.updateStatus();
       });
 
@@ -256,7 +256,7 @@
       this.clearImageSelection();
 
       if (this.state.sourceMode) {
-        this.source.value = this.textarea.value;
+        this.source.value = beautifyHtml(this.textarea.value);
       } else {
         this.setHtml(this.source.value);
         this.focusEnd();
@@ -269,7 +269,7 @@
       const cleanHtml = this.cleanupHtml(html);
       this.surface.innerHTML = cleanHtml;
       this.source.value = cleanHtml;
-      this.textarea.value = cleanHtml;
+      this.textarea.value = minifyHtml(cleanHtml);
       this.normalizeStructure();
 
       if (pushHistory) {
@@ -280,9 +280,10 @@
     }
 
     getHtml() {
-      this.textarea.value = this.state.sourceMode
+      const html = this.state.sourceMode
         ? this.cleanupHtml(this.source.value)
         : this.cleanupHtml(this.surface.innerHTML);
+	  this.textarea.value = minifyHtml(html);
       return this.textarea.value;
     }
 
@@ -302,16 +303,16 @@
         this.state.selectedImage = selectedImage;
       }
 
-      this.source.value = cleanHtml;
-      this.textarea.value = cleanHtml;
+      this.source.value = beautifyHtml(cleanHtml);
+      this.textarea.value = minifyHtml(cleanHtml);
       this.saveHistory(cleanHtml);
       this.updateStatus();
     }
 
     syncSelectedImageToTextarea() {
       const cleanHtml = this.cleanupHtml(this.surface.innerHTML);
-      this.source.value = cleanHtml;
-      this.textarea.value = cleanHtml;
+      this.source.value = beautifyHtml(cleanHtml);
+      this.textarea.value = minifyHtml(cleanHtml);
       this.saveHistory(cleanHtml);
       this.updateStatus();
     }
@@ -549,7 +550,13 @@
         const row = document.createElement("tr");
         for (let colIndex = 0; colIndex < cols; colIndex += 1) {
           const cell = document.createElement(rowIndex === 0 ? "th" : "td");
-          cell.textContent = rowIndex === 0 ? `標題 ${colIndex + 1}` : "";
+          // cell.textContent = rowIndex === 0 ? `標題 ${colIndex + 1}` : "內容";
+          if (rowIndex === 0) {
+            cell.textContent = `標題 ${colIndex + 1}`;
+          } else {
+            cell.style.textAlign = 'center';
+            cell.textContent = "內容";
+          }
           row.appendChild(cell);
         }
         tbody.appendChild(row);
@@ -853,6 +860,53 @@
     }
     return value.trim();
   }
+  
+  function beautifyHtml(html) {
+    const compactHtml = minifyHtml(html);
+    if (compactHtml === "") {
+      return "";
+    }
+
+    const tokens = compactHtml
+      .replace(/></g, ">\n<")
+      .split("\n")
+      .map((token) => token.trim())
+      .filter(Boolean);
+    const lines = [];
+    let depth = 0;
+
+    tokens.forEach((token) => {
+      if (/^<\/[^>]+>/.test(token)) {
+        depth = Math.max(depth - 1, 0);
+      }
+
+      lines.push(`${"  ".repeat(depth)}${token}`);
+
+      if (isOpeningHtmlToken(token) && !isVoidHtmlToken(token)) {
+        depth += 1;
+      }
+    });
+
+    return lines.join("\n");
+  }
+
+  function minifyHtml(html) {
+    return String(html || "")
+      .replace(/>\s+</g, "><")
+      .replace(/\s{2,}/g, " ")
+      .replace(/\n+/g, "")
+      .trim();
+  }
+
+  function isOpeningHtmlToken(token) {
+    return /^<([a-z][\w-]*)(\s[^>]*)?>$/i.test(token) && !/^<\//.test(token);
+  }
+
+  function isVoidHtmlToken(token) {
+    return /^<(br|hr|img|input|meta|link)(\s[^>]*)?>$/i.test(token) || /\/>$/.test(token);
+  }
+
+
 
   function unwrapNode(node) {
     const parent = node.parentNode;
