@@ -167,7 +167,8 @@ body {
 }
 
 .te__table-menu[hidden],
-.te__image-tools[hidden] {
+.te__image-tools[hidden],
+.te__cell-tools[hidden] {
   display: none;
 }
 
@@ -217,7 +218,8 @@ body {
   color: var(--text-soft);
 }
 
-.te__image-tools {
+.te__image-tools,
+.te__cell-tools {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -278,6 +280,12 @@ body {
 .te__surface img.te__image--selected {
   outline: 3px solid rgba(180, 83, 9, 0.5);
   outline-offset: 3px;
+}
+
+.te__surface th.te__cell--selected,
+.te__surface td.te__cell--selected {
+  outline: 3px solid rgba(180, 83, 9, 0.5);
+  outline-offset: -3px;
 }
 
 .te__surface table,

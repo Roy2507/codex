@@ -35,6 +35,7 @@
         history: [],
         historyIndex: -1,
         selectedImage: null,
+        selectedCell: null,
         tableMenuOpen: false
       };
 
@@ -108,6 +109,19 @@
           <span class="te__muted">%</span>
           <button type="button" class="te__button" data-action="image-original">自動</button>
         </div>
+        <div class="te__cell-tools" hidden>
+          <label class="te__image-label">儲存格寬度</label>
+          <input class="te__range" type="range" min="5" max="100" value="25" data-role="cell-width-range">
+          <input class="te__number" type="number" min="5" max="100" value="25" data-role="cell-width-number">
+          <span class="te__muted">%</span>
+          <button type="button" class="te__button" data-action="cell-auto">自動</button>
+          <button type="button" class="te__button" data-action="row-before">上方加列</button>
+          <button type="button" class="te__button" data-action="row-after">下方加列</button>
+          <button type="button" class="te__button" data-action="row-delete">刪除列</button>
+          <button type="button" class="te__button" data-action="col-before">左側加欄</button>
+          <button type="button" class="te__button" data-action="col-after">右側加欄</button>
+          <button type="button" class="te__button" data-action="col-delete">刪除欄</button>
+        </div>
         <div class="te__body">
           <div class="te__surface" contenteditable="true"></div>
           <textarea class="te__source" hidden></textarea>
@@ -131,6 +145,9 @@
       this.imageTools = this.container.querySelector(".te__image-tools");
       this.imageWidthRange = this.container.querySelector('[data-role="image-width-range"]');
       this.imageWidthNumber = this.container.querySelector('[data-role="image-width-number"]');
+      this.cellTools = this.container.querySelector(".te__cell-tools");
+      this.cellWidthRange = this.container.querySelector('[data-role="cell-width-range"]');
+      this.cellWidthNumber = this.container.querySelector('[data-role="cell-width-number"]');
       this.surface.dataset.placeholder = this.placeholder;
 
       this.textarea.insertAdjacentElement("afterend", this.container);
@@ -157,9 +174,14 @@
 
       this.surface.addEventListener("click", (event) => {
         if (event.target instanceof HTMLImageElement) {
+          this.clearCellSelection();
           this.selectEditorImage(event.target);
+        } else if (event.target instanceof Element && event.target.closest("td, th")) {
+          this.clearImageSelection();
+          this.selectTableCell(event.target.closest("td, th"));
         } else {
           this.clearImageSelection();
+          this.clearCellSelection();
         }
       });
 
@@ -170,6 +192,8 @@
 
       this.imageWidthRange.addEventListener("input", () => this.resizeSelectedImage(this.imageWidthRange.value));
       this.imageWidthNumber.addEventListener("change", () => this.resizeSelectedImage(this.imageWidthNumber.value));
+      this.cellWidthRange.addEventListener("input", () => this.resizeSelectedCell(this.cellWidthRange.value));
+      this.cellWidthNumber.addEventListener("change", () => this.resizeSelectedCell(this.cellWidthNumber.value));
 
       this.tableMenu.addEventListener("click", (event) => event.stopPropagation());
     }
@@ -198,6 +222,41 @@
 
       if (action === "image-original") {
         this.resetSelectedImageSize();
+        return;
+      }
+
+      if (action === "cell-auto") {
+        this.resetSelectedCellSize();
+        return;
+      }
+
+      if (action === "row-before") {
+        this.insertTableRow("before");
+        return;
+      }
+
+      if (action === "row-after") {
+        this.insertTableRow("after");
+        return;
+      }
+
+      if (action === "row-delete") {
+        this.deleteTableRow();
+        return;
+      }
+
+      if (action === "col-before") {
+        this.insertTableColumn("before");
+        return;
+      }
+
+      if (action === "col-after") {
+        this.insertTableColumn("after");
+        return;
+      }
+
+      if (action === "col-delete") {
+        this.deleteTableColumn();
         return;
       }
 
@@ -254,6 +313,7 @@
       this.source.hidden = !this.state.sourceMode;
       this.surface.hidden = this.state.sourceMode;
       this.clearImageSelection();
+      this.clearCellSelection();
 
       if (this.state.sourceMode) {
         this.source.value = beautifyHtml(this.textarea.value);
@@ -292,15 +352,18 @@
       if (selectedImage) {
         selectedImage.classList.remove("te__image--selected");
       }
+      const selectedCell = this.state.selectedCell;
+      if (selectedCell) {
+        selectedCell.classList.remove("te__cell--selected");
+      }
 
       const cleanHtml = this.cleanupHtml(this.surface.innerHTML);
-      if (this.surface.innerHTML !== cleanHtml) {
-        this.surface.innerHTML = cleanHtml;
-        this.state.selectedImage = null;
-        this.imageTools.hidden = true;
-      } else if (selectedImage) {
+      if (selectedImage) {
         selectedImage.classList.add("te__image--selected");
         this.state.selectedImage = selectedImage;
+      } else if (selectedCell) {
+        selectedCell.classList.add("te__cell--selected");
+        this.state.selectedCell = selectedCell;
       }
 
       this.source.value = beautifyHtml(cleanHtml);
@@ -490,6 +553,14 @@
         return;
       }
 
+      const currentList = this.closestAncestor(range.commonAncestorContainer, listTag);
+      if (currentList && this.surface.contains(currentList)) {
+        this.unwrapList(currentList);
+        this.normalizeStructure();
+        this.syncToTextarea();
+        return;
+      }
+
       const lines = range.toString().split(/\n+/).map((line) => line.trim()).filter(Boolean);
       const list = document.createElement(listTag);
 
@@ -655,6 +726,173 @@
       this.syncSelectedImageToTextarea();
     }
 
+    selectTableCell(cell) {
+      this.clearCellSelection();
+      this.state.selectedCell = cell;
+      cell.classList.add("te__cell--selected");
+      this.cellTools.hidden = false;
+
+      const widthValue = readPercentWidth(cell) || estimateCellWidth(cell);
+      this.cellWidthRange.value = widthValue;
+      this.cellWidthNumber.value = widthValue;
+    }
+
+    clearCellSelection() {
+      if (this.state.selectedCell) {
+        this.state.selectedCell.classList.remove("te__cell--selected");
+      }
+      this.state.selectedCell = null;
+      this.cellTools.hidden = true;
+    }
+
+    resizeSelectedCell(value) {
+      const cell = this.state.selectedCell;
+      if (!cell) {
+        return;
+      }
+
+      const width = clampInteger(value, 5, 100, 25);
+      this.cellWidthRange.value = width;
+      this.cellWidthNumber.value = width;
+      this.setStyleDeclaration(cell, "width", `${width}%`);
+      this.syncSelectedCellToTextarea();
+    }
+
+    resetSelectedCellSize() {
+      const cell = this.state.selectedCell;
+      if (!cell) {
+        return;
+      }
+
+      cell.style.removeProperty("width");
+      this.cellWidthRange.value = estimateCellWidth(cell);
+      this.cellWidthNumber.value = estimateCellWidth(cell);
+      this.syncSelectedCellToTextarea();
+    }
+
+    insertTableRow(position) {
+      const cell = this.state.selectedCell;
+      const row = cell ? cell.closest("tr") : null;
+      if (!row) {
+        return;
+      }
+
+      const newRow = document.createElement("tr");
+      Array.from(row.children).forEach((existingCell) => {
+        const newCell = document.createElement(existingCell.tagName.toLowerCase());
+        newCell.innerHTML = "<br>";
+        newRow.appendChild(newCell);
+      });
+
+      if (position === "before") {
+        row.parentNode.insertBefore(newRow, row);
+      } else {
+        row.parentNode.insertBefore(newRow, row.nextSibling);
+      }
+
+      this.selectTableCell(newRow.children[Math.min(cell.cellIndex, newRow.children.length - 1)]);
+      this.syncSelectedCellToTextarea();
+    }
+
+    deleteTableRow() {
+      const cell = this.state.selectedCell;
+      const row = cell ? cell.closest("tr") : null;
+      const table = cell ? cell.closest("table") : null;
+      if (!row || !table) {
+        return;
+      }
+
+      const rows = Array.from(table.querySelectorAll("tr"));
+      if (rows.length <= 1) {
+        table.remove();
+        this.clearCellSelection();
+        this.syncToTextarea();
+        return;
+      }
+
+      const nextRow = row.nextElementSibling || row.previousElementSibling;
+      const nextIndex = Math.min(cell.cellIndex, nextRow.children.length - 1);
+      row.remove();
+      this.selectTableCell(nextRow.children[nextIndex]);
+      this.syncSelectedCellToTextarea();
+    }
+
+    insertTableColumn(position) {
+      const cell = this.state.selectedCell;
+      const table = cell ? cell.closest("table") : null;
+      if (!cell || !table) {
+        return;
+      }
+
+      const targetIndex = cell.cellIndex + (position === "after" ? 1 : 0);
+      table.querySelectorAll("tr").forEach((row) => {
+        const referenceCell = row.children[targetIndex] || null;
+        const sampleCell = row.children[Math.max(0, Math.min(cell.cellIndex, row.children.length - 1))];
+        const newCell = document.createElement(sampleCell ? sampleCell.tagName.toLowerCase() : "td");
+        newCell.innerHTML = "<br>";
+        row.insertBefore(newCell, referenceCell);
+      });
+
+      const selectedRow = cell.closest("tr");
+      this.selectTableCell(selectedRow.children[targetIndex]);
+      this.syncSelectedCellToTextarea();
+    }
+
+    deleteTableColumn() {
+      const cell = this.state.selectedCell;
+      const table = cell ? cell.closest("table") : null;
+      if (!cell || !table) {
+        return;
+      }
+
+      const columnIndex = cell.cellIndex;
+      const maxColumns = Math.max(...Array.from(table.querySelectorAll("tr")).map((row) => row.children.length));
+      if (maxColumns <= 1) {
+        table.remove();
+        this.clearCellSelection();
+        this.syncToTextarea();
+        return;
+      }
+
+      let nextCell = null;
+      table.querySelectorAll("tr").forEach((row) => {
+        const cellToRemove = row.children[columnIndex];
+        if (!cellToRemove) {
+          return;
+        }
+
+        if (!nextCell && row === cell.closest("tr")) {
+          nextCell = row.children[columnIndex + 1] || row.children[columnIndex - 1] || null;
+        }
+        cellToRemove.remove();
+      });
+
+      if (nextCell && nextCell.isConnected) {
+        this.selectTableCell(nextCell);
+      } else {
+        this.clearCellSelection();
+      }
+      this.syncSelectedCellToTextarea();
+    }
+
+    syncSelectedCellToTextarea() {
+      const selectedCell = this.state.selectedCell;
+      if (selectedCell) {
+        selectedCell.classList.remove("te__cell--selected");
+      }
+
+      const cleanHtml = this.cleanupHtml(this.surface.innerHTML);
+      this.source.value = beautifyHtml(cleanHtml);
+      this.textarea.value = minifyHtml(cleanHtml);
+      this.saveHistory(cleanHtml);
+      this.updateStatus();
+
+      if (selectedCell) {
+        selectedCell.classList.add("te__cell--selected");
+        this.state.selectedCell = selectedCell;
+      }
+    }
+
     resetSelectedImageSize() {
       const image = this.state.selectedImage;
       if (!image) {
@@ -678,6 +916,28 @@
         current = current.parentNode;
       }
       return this.surface;
+    }
+
+    closestAncestor(node, tagName) {
+      let current = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+      const targetTag = tagName.toUpperCase();
+      while (current && current !== this.surface) {
+        if (current.tagName === targetTag) {
+          return current;
+        }
+        current = current.parentNode;
+      }
+      return null;
+    }
+
+    unwrapList(list) {
+      const fragment = document.createDocumentFragment();
+      Array.from(list.children).forEach((item) => {
+        const paragraph = document.createElement("p");
+        paragraph.innerHTML = item.innerHTML || "<br>";
+        fragment.appendChild(paragraph);
+      });
+      list.parentNode.replaceChild(fragment, list);
     }
 
     normalizeStructure() {
@@ -772,9 +1032,19 @@
     return Math.min(max, Math.max(min, parsed));
   }
 
-  function readPercentWidth(image) {
-    const match = (image.getAttribute("style") || "").match(/width\s*:\s*(\d+)%/i);
+  function readPercentWidth(element) {
+    const match = (element.getAttribute("style") || "").match(/(?:^|;)\s*width\s*:\s*(\d+(?:\.\d+)?)%/i);
     return match ? clampInteger(match[1], 10, 100, 100) : null;
+  }
+
+  function estimateCellWidth(cell) {
+    const row = cell.parentElement;
+    if (!row) {
+      return 25;
+    }
+
+    const cells = row.querySelectorAll("th, td").length || 4;
+    return clampInteger(Math.round(100 / cells), 5, 100, 25);
   }
 
   function parseStyle(styleText) {
