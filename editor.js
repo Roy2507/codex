@@ -3,7 +3,24 @@
   const ALLOWED_TAGS = new Set([
     "P", "BR", "H1", "H2", "H3", "H4", "BLOCKQUOTE",
     "UL", "OL", "LI", "STRONG", "EM", "U", "S", "A",
-    "IMG", "TABLE", "TBODY", "TR", "TH", "TD"
+    "IMG", "TABLE", "THEAD", "TBODY", "TR", "TH", "TD"
+  ]);
+  const ALLOWED_STYLE_PROPS = new Set([
+    "text-align",
+    "color",
+    "background-color",
+    "font-size",
+    "font-weight",
+    "font-style",
+    "text-decoration",
+    "width",
+    "height",
+    "max-width",
+    "min-width",
+    "border",
+    "border-collapse",
+    "padding",
+    "margin"
   ]);
 
   class TextEditor {
@@ -16,7 +33,9 @@
         sourceMode: false,
         savedRange: null,
         history: [],
-        historyIndex: -1
+        historyIndex: -1,
+        selectedImage: null,
+        tableMenuOpen: false
       };
 
       this.build();
@@ -35,11 +54,11 @@
       this.container.innerHTML = `
         <div class="te__toolbar">
           <div class="te__group">
-            <button type="button" class="te__button" data-action="undo">復原</button>
-            <button type="button" class="te__button" data-action="redo">重做</button>
+            <button type="button" class="te__button" data-action="undo" title="復原">復原</button>
+            <button type="button" class="te__button" data-action="redo" title="重做">重做</button>
           </div>
           <div class="te__group">
-            <select class="te__select" data-role="block">
+            <select class="te__select" data-role="block" title="段落格式">
               <option value="p">段落</option>
               <option value="h2">標題 2</option>
               <option value="h3">標題 3</option>
@@ -47,25 +66,47 @@
             </select>
           </div>
           <div class="te__group">
-            <button type="button" class="te__button" data-action="strong"><strong>B</strong></button>
-            <button type="button" class="te__button" data-action="em"><em>I</em></button>
-            <button type="button" class="te__button" data-action="u"><u>U</u></button>
-            <button type="button" class="te__button" data-action="s"><s>S</s></button>
+            <button type="button" class="te__button" data-action="strong" title="粗體"><strong>B</strong></button>
+            <button type="button" class="te__button" data-action="em" title="斜體"><em>I</em></button>
+            <button type="button" class="te__button" data-action="u" title="底線"><u>U</u></button>
+            <button type="button" class="te__button" data-action="s" title="刪除線"><s>S</s></button>
           </div>
           <div class="te__group">
-            <button type="button" class="te__button" data-action="align" data-value="left">靠左</button>
-            <button type="button" class="te__button" data-action="align" data-value="center">置中</button>
-            <button type="button" class="te__button" data-action="align" data-value="right">靠右</button>
+            <button type="button" class="te__button" data-action="align" data-value="left" title="靠左">靠左</button>
+            <button type="button" class="te__button" data-action="align" data-value="center" title="置中">置中</button>
+            <button type="button" class="te__button" data-action="align" data-value="right" title="靠右">靠右</button>
           </div>
           <div class="te__group">
-            <button type="button" class="te__button" data-action="unordered-list">清單</button>
-            <button type="button" class="te__button" data-action="ordered-list">編號</button>
-            <button type="button" class="te__button" data-action="link">連結</button>
-            <button type="button" class="te__button" data-action="image">圖片</button>
-            <button type="button" class="te__button" data-action="table">表格</button>
-            <button type="button" class="te__button" data-action="code">原始碼</button>
-            <button type="button" class="te__button" data-action="clear">清空</button>
+            <button type="button" class="te__button" data-action="unordered-list" title="項目清單">清單</button>
+            <button type="button" class="te__button" data-action="ordered-list" title="編號清單">編號</button>
+            <button type="button" class="te__button" data-action="link" title="連結">連結</button>
+            <button type="button" class="te__button" data-action="image" title="圖片">圖片</button>
           </div>
+          <div class="te__group te__table-tools">
+            <button type="button" class="te__button" data-action="table-menu" title="表格">表格</button>
+            <div class="te__table-menu" hidden>
+              <label class="te__menu-field">
+                <span>列數</span>
+                <input class="te__number" type="number" min="1" max="20" value="2" data-role="table-rows" title="列數">
+              </label>
+              <label class="te__menu-field">
+                <span>欄數</span>
+                <input class="te__number" type="number" min="1" max="12" value="2" data-role="table-cols" title="欄數">
+              </label>
+              <button type="button" class="te__button" data-action="table-insert" title="插入表格">插入表格</button>
+            </div>
+          </div>
+          <div class="te__group">
+            <button type="button" class="te__button" data-action="code" title="原始碼">原始碼</button>
+            <button type="button" class="te__button" data-action="clear" title="清空">清空</button>
+          </div>
+        </div>
+        <div class="te__image-tools" hidden>
+          <label class="te__image-label">圖片寬度</label>
+          <input class="te__range" type="range" min="10" max="100" value="100" data-role="image-width-range">
+          <input class="te__number" type="number" min="10" max="100" value="100" data-role="image-width-number">
+          <span class="te__muted">%</span>
+          <button type="button" class="te__button" data-action="image-original">自動</button>
         </div>
         <div class="te__body">
           <div class="te__surface" contenteditable="true"></div>
@@ -84,6 +125,12 @@
       this.wordsNode = this.container.querySelector('[data-role="words"]');
       this.blocksNode = this.container.querySelector('[data-role="blocks"]');
       this.modeNode = this.container.querySelector('[data-role="mode"]');
+      this.tableRowsInput = this.container.querySelector('[data-role="table-rows"]');
+      this.tableColsInput = this.container.querySelector('[data-role="table-cols"]');
+      this.tableMenu = this.container.querySelector(".te__table-menu");
+      this.imageTools = this.container.querySelector(".te__image-tools");
+      this.imageWidthRange = this.container.querySelector('[data-role="image-width-range"]');
+      this.imageWidthNumber = this.container.querySelector('[data-role="image-width-number"]');
       this.surface.dataset.placeholder = this.placeholder;
 
       this.textarea.insertAdjacentElement("afterend", this.container);
@@ -108,10 +155,23 @@
         this.syncToTextarea();
       });
 
+      this.surface.addEventListener("click", (event) => {
+        if (event.target instanceof HTMLImageElement) {
+          this.selectEditorImage(event.target);
+        } else {
+          this.clearImageSelection();
+        }
+      });
+
       this.source.addEventListener("input", () => {
         this.textarea.value = this.cleanupHtml(this.source.value);
         this.updateStatus();
       });
+
+      this.imageWidthRange.addEventListener("input", () => this.resizeSelectedImage(this.imageWidthRange.value));
+      this.imageWidthNumber.addEventListener("change", () => this.resizeSelectedImage(this.imageWidthNumber.value));
+
+      this.tableMenu.addEventListener("click", (event) => event.stopPropagation());
     }
 
     handleAction(action, value) {
@@ -133,6 +193,16 @@
       if (action === "clear") {
         this.setHtml("<p></p>");
         this.focusEnd();
+        return;
+      }
+
+      if (action === "image-original") {
+        this.resetSelectedImageSize();
+        return;
+      }
+
+      if (action === "table-menu") {
+        this.toggleTableMenu();
         return;
       }
 
@@ -173,8 +243,9 @@
         return;
       }
 
-      if (action === "table") {
+      if (action === "table-insert") {
         this.insertTable();
+        this.hideTableMenu();
       }
     }
 
@@ -182,6 +253,7 @@
       this.state.sourceMode = !this.state.sourceMode;
       this.source.hidden = !this.state.sourceMode;
       this.surface.hidden = this.state.sourceMode;
+      this.clearImageSelection();
 
       if (this.state.sourceMode) {
         this.source.value = this.textarea.value;
@@ -208,14 +280,36 @@
     }
 
     getHtml() {
+      this.textarea.value = this.state.sourceMode
+        ? this.cleanupHtml(this.source.value)
+        : this.cleanupHtml(this.surface.innerHTML);
       return this.textarea.value;
     }
 
     syncToTextarea() {
+      const selectedImage = this.state.selectedImage;
+      if (selectedImage) {
+        selectedImage.classList.remove("te__image--selected");
+      }
+
       const cleanHtml = this.cleanupHtml(this.surface.innerHTML);
       if (this.surface.innerHTML !== cleanHtml) {
         this.surface.innerHTML = cleanHtml;
+        this.state.selectedImage = null;
+        this.imageTools.hidden = true;
+      } else if (selectedImage) {
+        selectedImage.classList.add("te__image--selected");
+        this.state.selectedImage = selectedImage;
       }
+
+      this.source.value = cleanHtml;
+      this.textarea.value = cleanHtml;
+      this.saveHistory(cleanHtml);
+      this.updateStatus();
+    }
+
+    syncSelectedImageToTextarea() {
+      const cleanHtml = this.cleanupHtml(this.surface.innerHTML);
       this.source.value = cleanHtml;
       this.textarea.value = cleanHtml;
       this.saveHistory(cleanHtml);
@@ -383,7 +477,7 @@
 
       const block = this.closestBlock(range.commonAncestorContainer);
       if (block && block !== this.surface) {
-        block.style.textAlign = alignment;
+        this.setStyleDeclaration(block, "text-align", alignment);
       }
 
       this.syncToTextarea();
@@ -443,14 +537,19 @@
     }
 
     insertTable() {
+      const rows = clampInteger(this.tableRowsInput.value, 1, 20, 2);
+      const cols = clampInteger(this.tableColsInput.value, 1, 12, 2);
       const table = document.createElement("table");
       const tbody = document.createElement("tbody");
 
-      for (let rowIndex = 0; rowIndex < 2; rowIndex += 1) {
+      this.setStyleDeclaration(table, "width", "100%");
+      this.setStyleDeclaration(table, "border-collapse", "collapse");
+
+      for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
         const row = document.createElement("tr");
-        for (let colIndex = 0; colIndex < 2; colIndex += 1) {
+        for (let colIndex = 0; colIndex < cols; colIndex += 1) {
           const cell = document.createElement(rowIndex === 0 ? "th" : "td");
-          cell.textContent = rowIndex === 0 ? `標題 ${colIndex + 1}` : "內容";
+          cell.textContent = rowIndex === 0 ? `標題 ${colIndex + 1}` : "";
           row.appendChild(cell);
         }
         tbody.appendChild(row);
@@ -461,6 +560,16 @@
       this.insertNode(document.createElement("p"));
       this.normalizeStructure();
       this.syncToTextarea();
+    }
+
+    toggleTableMenu() {
+      this.state.tableMenuOpen = !this.state.tableMenuOpen;
+      this.tableMenu.hidden = !this.state.tableMenuOpen;
+    }
+
+    hideTableMenu() {
+      this.state.tableMenuOpen = false;
+      this.tableMenu.hidden = true;
     }
 
     selectImage() {
@@ -484,22 +593,73 @@
           const data = await response.json();
 
           if (!response.ok || !data.url) {
-            throw new Error((data.error && data.error.message) || "圖片上傳失敗");
+            throw new Error((data.error && data.error.message) || "圖片上傳失敗。");
           }
 
           const paragraph = document.createElement("p");
           const image = document.createElement("img");
           image.src = data.url;
           image.alt = file.name;
+          this.setStyleDeclaration(image, "max-width", "100%");
+          this.setStyleDeclaration(image, "height", "auto");
           paragraph.appendChild(image);
           this.insertNode(paragraph);
+          this.selectEditorImage(image);
           this.normalizeStructure();
           this.syncToTextarea();
         } catch (error) {
-          window.alert(error.message || "圖片上傳失敗");
+          window.alert(error.message || "圖片上傳失敗。");
         }
       }, { once: true });
       picker.click();
+    }
+
+    selectEditorImage(image) {
+      this.clearImageSelection();
+      this.state.selectedImage = image;
+      image.classList.add("te__image--selected");
+      this.imageTools.hidden = false;
+
+      const widthValue = readPercentWidth(image) || 100;
+      this.imageWidthRange.value = widthValue;
+      this.imageWidthNumber.value = widthValue;
+    }
+
+    clearImageSelection() {
+      if (this.state.selectedImage) {
+        this.state.selectedImage.classList.remove("te__image--selected");
+      }
+      this.state.selectedImage = null;
+      this.imageTools.hidden = true;
+    }
+
+    resizeSelectedImage(value) {
+      const image = this.state.selectedImage;
+      if (!image) {
+        return;
+      }
+
+      const width = clampInteger(value, 10, 100, 100);
+      this.imageWidthRange.value = width;
+      this.imageWidthNumber.value = width;
+      this.setStyleDeclaration(image, "width", `${width}%`);
+      this.setStyleDeclaration(image, "height", "auto");
+      this.setStyleDeclaration(image, "max-width", "100%");
+      this.syncSelectedImageToTextarea();
+    }
+
+    resetSelectedImageSize() {
+      const image = this.state.selectedImage;
+      if (!image) {
+        return;
+      }
+
+      image.style.removeProperty("width");
+      this.setStyleDeclaration(image, "height", "auto");
+      this.setStyleDeclaration(image, "max-width", "100%");
+      this.imageWidthRange.value = 100;
+      this.imageWidthNumber.value = 100;
+      this.syncSelectedImageToTextarea();
     }
 
     closestBlock(node) {
@@ -531,7 +691,7 @@
       const wrapper = document.createElement("div");
       wrapper.innerHTML = String(html || "");
 
-      wrapper.querySelectorAll("script, style, iframe").forEach((node) => node.remove());
+      wrapper.querySelectorAll("script, iframe, object, embed, link, meta").forEach((node) => node.remove());
 
       wrapper.querySelectorAll("*").forEach((node) => {
         if (!ALLOWED_TAGS.has(node.tagName)) {
@@ -547,32 +707,43 @@
           }
 
           if (name === "style") {
-            const match = attribute.value.match(/text-align\s*:\s*(left|center|right)/i);
-            if (match) {
-              node.setAttribute("style", `text-align:${match[1].toLowerCase()}`);
+            const safeStyle = sanitizeStyle(attribute.value);
+            if (safeStyle) {
+              node.setAttribute("style", safeStyle);
             } else {
               node.removeAttribute("style");
             }
             return;
           }
 
-          if (node.tagName === "A" && !["href", "target", "rel", "style"].includes(attribute.name)) {
+          if (node.tagName === "A" && !["href", "target", "rel"].includes(name)) {
             node.removeAttribute(attribute.name);
             return;
           }
 
-          if (node.tagName === "IMG" && !["src", "alt"].includes(attribute.name)) {
+          if (node.tagName === "IMG" && !["src", "alt"].includes(name)) {
             node.removeAttribute(attribute.name);
             return;
           }
 
-          if (!["A", "IMG", "TD", "TH"].includes(node.tagName) && attribute.name !== "style") {
+          if (!["A", "IMG"].includes(node.tagName)) {
             node.removeAttribute(attribute.name);
           }
         });
+
+        if (node.tagName === "A" && node.hasAttribute("href")) {
+          node.setAttribute("target", "_blank");
+          node.setAttribute("rel", "noopener noreferrer");
+        }
       });
 
       return wrapper.innerHTML.trim() || "<p></p>";
+    }
+
+    setStyleDeclaration(node, property, value) {
+      const style = parseStyle(node.getAttribute("style") || "");
+      style.set(property, value);
+      node.setAttribute("style", serializeStyle(style));
     }
 
     updateStatus() {
@@ -584,6 +755,103 @@
       this.blocksNode.textContent = `${blockCount} 段`;
       this.modeNode.textContent = this.state.sourceMode ? "原始碼模式" : "視覺模式";
     }
+  }
+
+  function clampInteger(value, min, max, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed)) {
+      return fallback;
+    }
+    return Math.min(max, Math.max(min, parsed));
+  }
+
+  function readPercentWidth(image) {
+    const match = (image.getAttribute("style") || "").match(/width\s*:\s*(\d+)%/i);
+    return match ? clampInteger(match[1], 10, 100, 100) : null;
+  }
+
+  function parseStyle(styleText) {
+    const style = new Map();
+    String(styleText || "").split(";").forEach((declaration) => {
+      const separatorIndex = declaration.indexOf(":");
+      if (separatorIndex === -1) {
+        return;
+      }
+
+      const property = declaration.slice(0, separatorIndex).trim().toLowerCase();
+      const value = declaration.slice(separatorIndex + 1).trim();
+      if (isSafeStyleDeclaration(property, value)) {
+        style.set(property, normalizeStyleValue(property, value));
+      }
+    });
+    return style;
+  }
+
+  function serializeStyle(style) {
+    return Array.from(style.entries())
+      .map(([property, value]) => `${property}:${value}`)
+      .join(";");
+  }
+
+  function sanitizeStyle(styleText) {
+    return serializeStyle(parseStyle(styleText));
+  }
+
+  function isSafeStyleDeclaration(property, value) {
+    const normalizedValue = String(value || "").trim().toLowerCase();
+    if (!ALLOWED_STYLE_PROPS.has(property) || normalizedValue === "") {
+      return false;
+    }
+
+    if (
+      normalizedValue.includes("expression") ||
+      normalizedValue.includes("javascript:") ||
+      normalizedValue.includes("vbscript:") ||
+      normalizedValue.includes("url(")
+    ) {
+      return false;
+    }
+
+    if (["width", "height", "max-width", "min-width", "font-size", "padding", "margin"].includes(property)) {
+      return /^-?\d+(\.\d+)?(px|em|rem|%|vh|vw)?$/i.test(normalizedValue);
+    }
+
+    if (property === "text-align") {
+      return /^(left|center|right|justify)$/i.test(normalizedValue);
+    }
+
+    if (property === "font-weight") {
+      return /^(normal|bold|[1-9]00)$/i.test(normalizedValue);
+    }
+
+    if (property === "font-style") {
+      return /^(normal|italic|oblique)$/i.test(normalizedValue);
+    }
+
+    if (property === "text-decoration") {
+      return /^(none|underline|line-through|overline)$/i.test(normalizedValue);
+    }
+
+    if (property === "border-collapse") {
+      return /^(collapse|separate)$/i.test(normalizedValue);
+    }
+
+    if (property === "border") {
+      return /^(\d+(\.\d+)?px\s+)?(solid|dashed|dotted|double)\s+(#[0-9a-f]{3,8}|[a-z]+|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\))$/i.test(normalizedValue);
+    }
+
+    if (["color", "background-color"].includes(property)) {
+      return /^(#[0-9a-f]{3,8}|[a-z]+|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)|rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(0|1|0?\.\d+)\s*\))$/i.test(normalizedValue);
+    }
+
+    return false;
+  }
+
+  function normalizeStyleValue(property, value) {
+    if (["width", "height", "max-width", "min-width", "font-size", "padding", "margin"].includes(property) && /^-?\d+(\.\d+)?$/i.test(value)) {
+      return `${value}px`;
+    }
+    return value.trim();
   }
 
   function unwrapNode(node) {

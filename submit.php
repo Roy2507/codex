@@ -21,12 +21,16 @@ function sanitizeSubmittedHtml(string $html): string
     $allowedTags = [
         'p', 'br', 'h1', 'h2', 'h3', 'h4', 'blockquote',
         'ul', 'ol', 'li', 'strong', 'em', 'u', 's', 'a',
-        'img', 'table', 'tbody', 'tr', 'th', 'td'
+        'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td'
     ];
 
     $allowedAttributes = [
-        'a' => ['href', 'target', 'rel'],
-        'img' => ['src', 'alt'],
+        'a' => ['href', 'target', 'rel', 'style'],
+        'img' => ['src', 'alt', 'style'],
+        'table' => ['style'],
+        'thead' => ['style'],
+        'tbody' => ['style'],
+        'tr' => ['style'],
         'th' => ['style'],
         'td' => ['style'],
         'p' => ['style'],
@@ -34,7 +38,14 @@ function sanitizeSubmittedHtml(string $html): string
         'h2' => ['style'],
         'h3' => ['style'],
         'h4' => ['style'],
-        'blockquote' => ['style']
+        'blockquote' => ['style'],
+        'ul' => ['style'],
+        'ol' => ['style'],
+        'li' => ['style'],
+        'strong' => ['style'],
+        'em' => ['style'],
+        'u' => ['style'],
+        's' => ['style']
     ];
 
     $dom = new DOMDocument('1.0', 'UTF-8');
@@ -89,11 +100,11 @@ function sanitizeSubmittedHtml(string $html): string
                 }
 
                 if ($attributeName === 'style') {
-                    $match = preg_match('/text-align\s*:\s*(left|center|right)/i', $attribute->value, $matched);
-                    if ($match !== 1) {
+                    $safeStyle = sanitizeStyle($attribute->value);
+                    if ($safeStyle === '') {
                         $attributesToRemove[] = $attribute->name;
                     } else {
-                        $child->setAttribute('style', 'text-align:' . strtolower($matched[1]));
+                        $child->setAttribute('style', $safeStyle);
                     }
                 }
             }
@@ -117,6 +128,93 @@ function sanitizeSubmittedHtml(string $html): string
     }
 
     return trim($output);
+}
+
+function sanitizeStyle(string $styleText): string
+{
+    $allowedProperties = [
+        'text-align',
+        'color',
+        'background-color',
+        'font-size',
+        'font-weight',
+        'font-style',
+        'text-decoration',
+        'width',
+        'height',
+        'max-width',
+        'min-width',
+        'border',
+        'border-collapse',
+        'padding',
+        'margin'
+    ];
+
+    $safeDeclarations = [];
+    foreach (explode(';', $styleText) as $declaration) {
+        $parts = explode(':', $declaration, 2);
+        if (count($parts) !== 2) {
+            continue;
+        }
+
+        $property = strtolower(trim($parts[0]));
+        $value = trim($parts[1]);
+        $lowerValue = strtolower($value);
+
+        if (!in_array($property, $allowedProperties, true) || $value === '') {
+            continue;
+        }
+
+        if (
+            strpos($lowerValue, 'expression') !== false ||
+            strpos($lowerValue, 'javascript:') !== false ||
+            strpos($lowerValue, 'vbscript:') !== false ||
+            strpos($lowerValue, 'url(') !== false
+        ) {
+            continue;
+        }
+
+        if (in_array($property, ['width', 'height', 'max-width', 'min-width', 'font-size', 'padding', 'margin'], true)) {
+            if (!preg_match('/^-?\d+(\.\d+)?(px|em|rem|%|vh|vw)?$/i', $value)) {
+                continue;
+            }
+            if (preg_match('/^-?\d+(\.\d+)?$/', $value)) {
+                $value .= 'px';
+            }
+        } elseif ($property === 'text-align') {
+            if (!preg_match('/^(left|center|right|justify)$/i', $value)) {
+                continue;
+            }
+        } elseif ($property === 'font-weight') {
+            if (!preg_match('/^(normal|bold|[1-9]00)$/i', $value)) {
+                continue;
+            }
+        } elseif ($property === 'font-style') {
+            if (!preg_match('/^(normal|italic|oblique)$/i', $value)) {
+                continue;
+            }
+        } elseif ($property === 'text-decoration') {
+            if (!preg_match('/^(none|underline|line-through|overline)$/i', $value)) {
+                continue;
+            }
+        } elseif ($property === 'border-collapse') {
+            if (!preg_match('/^(collapse|separate)$/i', $value)) {
+                continue;
+            }
+        } elseif ($property === 'border') {
+            if (!preg_match('/^(\d+(\.\d+)?px\s+)?(solid|dashed|dotted|double)\s+(#[0-9a-f]{3,8}|[a-z]+|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\))$/i', $value)) {
+                continue;
+            }
+        } elseif (in_array($property, ['color', 'background-color'], true)) {
+            if (!preg_match('/^(#[0-9a-f]{3,8}|[a-z]+|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)|rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(0|1|0?\.\d+)\s*\))$/i', $value)) {
+                continue;
+            }
+        }
+
+        $safeDeclarations[] = $property . ':' . $value;
+    }
+
+    return implode(';', $safeDeclarations);
 }
 
 $title = trim((string) ($_POST['title'] ?? ''));

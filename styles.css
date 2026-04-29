@@ -147,8 +147,42 @@ body {
   align-items: center;
 }
 
+.te__table-tools {
+  position: relative;
+}
+
+.te__table-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  left: 0;
+  display: grid;
+  gap: 10px;
+  min-width: 190px;
+  padding: 12px;
+  border: 1px solid rgba(31, 41, 55, 0.14);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(31, 41, 55, 0.16);
+}
+
+.te__table-menu[hidden],
+.te__image-tools[hidden] {
+  display: none;
+}
+
+.te__menu-field {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+  align-items: center;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
 .te__button,
-.te__select {
+.te__select,
+.te__number {
   border: 1px solid rgba(31, 41, 55, 0.12);
   border-radius: 12px;
   background: #fff;
@@ -163,14 +197,43 @@ body {
 
 .te__button:hover,
 .te__button:focus-visible,
-.te__select:focus-visible {
+.te__select:focus-visible,
+.te__number:focus-visible {
   outline: none;
   border-color: rgba(180, 83, 9, 0.35);
   background: rgba(255, 247, 237, 1);
 }
 
-.te__select {
+.te__select,
+.te__number {
   padding: 8px 10px;
+}
+
+.te__number {
+  width: 64px;
+}
+
+.te__muted {
+  color: var(--text-soft);
+}
+
+.te__image-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(31, 41, 55, 0.08);
+  background: rgba(255, 247, 237, 0.72);
+}
+
+.te__image-label {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.te__range {
+  width: min(220px, 42vw);
 }
 
 .te__surface,
@@ -210,6 +273,11 @@ body {
   max-width: 100%;
   height: auto;
   border-radius: 14px;
+}
+
+.te__surface img.te__image--selected {
+  outline: 3px solid rgba(180, 83, 9, 0.5);
+  outline-offset: 3px;
 }
 
 .te__surface table,
