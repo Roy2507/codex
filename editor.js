@@ -42,7 +42,7 @@
       this.build();
       this.bindEvents();
       this.setHtml(this.textarea.value || "<p></p>", false);
-      this.saveHistory(this.textarea.value || "<p></p>");
+      this.saveHistory(this.textarea.value || "<p></p>", this.captureSelectionBookmark());
       this.updateStatus();
     }
 
@@ -333,7 +333,7 @@
       this.normalizeStructure();
 
       if (pushHistory) {
-        this.saveHistory(cleanHtml);
+        this.saveHistory(cleanHtml, this.captureSelectionBookmark());
       }
 
       this.updateStatus();
@@ -368,7 +368,7 @@
 
       this.source.value = beautifyHtml(cleanHtml);
       this.textarea.value = minifyHtml(cleanHtml);
-      this.saveHistory(cleanHtml);
+      this.saveHistory(cleanHtml, this.captureSelectionBookmark());
       this.updateStatus();
     }
 
@@ -376,19 +376,35 @@
       const cleanHtml = this.cleanupHtml(this.surface.innerHTML);
       this.source.value = beautifyHtml(cleanHtml);
       this.textarea.value = minifyHtml(cleanHtml);
-      this.saveHistory(cleanHtml);
+      this.saveHistory(cleanHtml, this.captureSelectionBookmark());
       this.updateStatus();
     }
 
-    saveHistory(html) {
+    saveHistory(html, bookmark = null) {
+      const entry = {
+        html,
+        bookmark
+      };
       const lastValue = this.state.history[this.state.historyIndex];
-      if (lastValue === html) {
+      if (lastValue && lastValue.html === html) {
+        if (bookmark) {
+          lastValue.bookmark = bookmark;
+        }
         return;
       }
 
       this.state.history = this.state.history.slice(0, this.state.historyIndex + 1);
-      this.state.history.push(html);
+      this.state.history.push(entry);
       this.state.historyIndex = this.state.history.length - 1;
+    }
+
+    updateCurrentHistoryBookmark(bookmark = null) {
+      const currentEntry = this.state.history[this.state.historyIndex];
+      if (!currentEntry) {
+        return;
+      }
+
+      currentEntry.bookmark = bookmark || this.captureSelectionBookmark();
     }
 
     moveHistory(step) {
@@ -398,8 +414,13 @@
       }
 
       this.state.historyIndex = nextIndex;
-      this.setHtml(this.state.history[nextIndex], false);
-      this.focusEnd();
+      const entry = this.state.history[nextIndex];
+      this.setHtml(entry.html, false);
+      if (entry.bookmark) {
+        this.restoreSelectionBookmark(entry.bookmark);
+      } else {
+        this.focusEnd();
+      }
     }
 
     saveSelection() {
@@ -553,31 +574,59 @@
         return;
       }
 
-      const currentList = this.closestAncestor(range.commonAncestorContainer, listTag);
-      if (currentList && this.surface.contains(currentList)) {
-        this.unwrapList(currentList);
+      this.updateCurrentHistoryBookmark(this.createRangeBookmarks(range, this.getBookmarkBlocks()));
+
+      const currentItem = this.closestAncestor(range.commonAncestorContainer, "li");
+      const currentList = currentItem ? currentItem.parentElement : null;
+      const selectedItems = range.collapsed
+        ? (currentItem ? [currentItem] : [])
+        : this.getSelectedListItems(range);
+      if (selectedItems.length > 0 && selectedItems.every((item) => item.parentElement && item.parentElement.tagName.toLowerCase() === listTag)) {
+        this.unwrapSelectedListItems(selectedItems, range);
         this.normalizeStructure();
         this.syncToTextarea();
         return;
       }
 
-      const lines = range.toString().split(/\n+/).map((line) => line.trim()).filter(Boolean);
-      const list = document.createElement(listTag);
+      if (currentItem && currentList && currentList.tagName.toLowerCase() === listTag) {
+        const caretOffset = this.getTextOffsetInNode(currentItem, range.startContainer, range.startOffset);
+        const paragraph = this.unwrapListItem(currentItem);
+        this.placeCaretAtTextOffset(paragraph, caretOffset);
+        this.normalizeStructure();
+        this.syncToTextarea();
+        return;
+      }
 
-      if (lines.length === 0) {
+      const otherListTag = listTag === "ul" ? "ol" : "ul";
+      if (selectedItems.length > 0 && selectedItems.every((item) => item.parentElement && item.parentElement.tagName.toLowerCase() === otherListTag)) {
+        this.convertSelectedListItems(selectedItems, listTag, range);
+        this.normalizeStructure();
+        this.syncToTextarea();
+        return;
+      }
+
+      const selectedBlocks = this.getSelectedListBlocks(range).filter((block) => block.tagName !== "LI");
+      const list = document.createElement(listTag);
+      const bookmarks = this.createRangeBookmarks(range, selectedBlocks);
+
+      if (selectedBlocks.length === 0) {
         const item = document.createElement("li");
         item.innerHTML = "<br>";
         list.appendChild(item);
+        range.deleteContents();
+        this.insertNode(list);
       } else {
-        lines.forEach((line) => {
+        selectedBlocks.forEach((block) => {
           const item = document.createElement("li");
-          item.textContent = line;
+          item.innerHTML = block.innerHTML || "<br>";
           list.appendChild(item);
         });
+
+        selectedBlocks[0].parentNode.insertBefore(list, selectedBlocks[0]);
+        selectedBlocks.forEach((block) => block.remove());
+        this.restoreRangeFromBookmarks(bookmarks, Array.from(list.children));
       }
 
-      range.deleteContents();
-      this.insertNode(list);
       this.normalizeStructure();
       this.syncToTextarea();
     }
@@ -884,7 +933,7 @@
       const cleanHtml = this.cleanupHtml(this.surface.innerHTML);
       this.source.value = beautifyHtml(cleanHtml);
       this.textarea.value = minifyHtml(cleanHtml);
-      this.saveHistory(cleanHtml);
+      this.saveHistory(cleanHtml, this.captureSelectionBookmark());
       this.updateStatus();
 
       if (selectedCell) {
@@ -930,14 +979,234 @@
       return null;
     }
 
-    unwrapList(list) {
-      const fragment = document.createDocumentFragment();
-      Array.from(list.children).forEach((item) => {
-        const paragraph = document.createElement("p");
-        paragraph.innerHTML = item.innerHTML || "<br>";
-        fragment.appendChild(paragraph);
+    getSelectedListBlocks(range) {
+      const blockSelector = "p, h1, h2, h3, h4, blockquote, li";
+      const blocks = Array.from(this.surface.querySelectorAll(blockSelector)).filter((block) => {
+        return range.intersectsNode(block);
       });
-      list.parentNode.replaceChild(fragment, list);
+
+      if (blocks.length > 0) {
+        return blocks;
+      }
+
+      const block = this.closestBlock(range.commonAncestorContainer);
+      return block && block !== this.surface ? [block] : [];
+    }
+
+    unwrapListItem(item) {
+      const list = item.parentElement;
+      const paragraph = document.createElement("p");
+      paragraph.innerHTML = item.innerHTML || "<br>";
+      list.parentNode.insertBefore(paragraph, list.nextSibling);
+      item.remove();
+
+      if (list.children.length === 0) {
+        list.remove();
+      }
+
+      return paragraph;
+    }
+
+    getSelectedListItems(range) {
+      return Array.from(this.surface.querySelectorAll("li")).filter((item) => {
+        return range.intersectsNode(item);
+      });
+    }
+
+    unwrapSelectedListItems(items, range) {
+      const bookmarks = this.createRangeBookmarks(range, items);
+      const paragraphs = this.rebuildListsWithSelectedItems(items, "unwrap");
+      this.restoreRangeFromBookmarks(bookmarks, paragraphs);
+    }
+
+    convertSelectedListItems(items, listTag, range) {
+      const bookmarks = this.createRangeBookmarks(range, items);
+      const convertedItems = this.rebuildListsWithSelectedItems(items, "convert", listTag);
+      this.restoreRangeFromBookmarks(bookmarks, convertedItems);
+    }
+
+    rebuildListsWithSelectedItems(items, mode, targetListTag = null) {
+      const groups = [];
+
+      items.forEach((item) => {
+        const list = item.parentElement;
+        let group = groups.find((entry) => entry.list === list);
+        if (!group) {
+          group = {
+            list,
+            items: []
+          };
+          groups.push(group);
+        }
+        group.items.push(item);
+      });
+
+      const rebuiltTargets = [];
+      groups.forEach((group) => {
+        const selectedSet = new Set(group.items);
+        const fragment = document.createDocumentFragment();
+        let currentUnselectedList = null;
+        let currentConvertedList = null;
+
+        Array.from(group.list.children).forEach((item) => {
+          if (selectedSet.has(item)) {
+            currentUnselectedList = null;
+
+            if (mode === "unwrap") {
+              const paragraph = document.createElement("p");
+              paragraph.innerHTML = item.innerHTML || "<br>";
+              fragment.appendChild(paragraph);
+              rebuiltTargets.push(paragraph);
+              return;
+            }
+
+            if (!currentConvertedList) {
+              currentConvertedList = document.createElement(targetListTag);
+              fragment.appendChild(currentConvertedList);
+            }
+
+            const convertedItem = document.createElement("li");
+            convertedItem.innerHTML = item.innerHTML || "<br>";
+            currentConvertedList.appendChild(convertedItem);
+            rebuiltTargets.push(convertedItem);
+            return;
+          }
+
+          currentConvertedList = null;
+          if (!currentUnselectedList) {
+            currentUnselectedList = document.createElement(group.list.tagName.toLowerCase());
+            copyElementAttributes(group.list, currentUnselectedList);
+            fragment.appendChild(currentUnselectedList);
+          }
+
+          const clonedItem = document.createElement("li");
+          clonedItem.innerHTML = item.innerHTML || "<br>";
+          currentUnselectedList.appendChild(clonedItem);
+        });
+
+        group.list.parentNode.replaceChild(fragment, group.list);
+      });
+
+      return rebuiltTargets;
+    }
+
+    placeCaretAtTextOffset(node, offset) {
+      const textPosition = findTextPosition(node, offset);
+      const range = document.createRange();
+      range.setStart(textPosition.node, textPosition.offset);
+      range.collapse(true);
+
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      this.state.savedRange = range.cloneRange();
+    }
+
+    captureSelectionBookmark() {
+      const range = this.getEditorRange() || this.state.savedRange;
+      if (!range) {
+        return null;
+      }
+
+      const blocks = this.getBookmarkBlocks();
+      if (blocks.length === 0) {
+        return null;
+      }
+
+      return this.createRangeBookmarks(range, blocks);
+    }
+
+    restoreSelectionBookmark(bookmark) {
+      const blocks = this.getBookmarkBlocks();
+      this.restoreRangeFromBookmarks(bookmark, blocks);
+    }
+
+    getBookmarkBlocks() {
+      const blocks = Array.from(this.surface.querySelectorAll("p, h1, h2, h3, h4, blockquote, li, td, th"));
+      return blocks.length > 0 ? blocks : [this.surface];
+    }
+
+    createRangeBookmarks(range, blocks) {
+      if (blocks.length === 0) {
+        return {
+          collapsed: true,
+          startBlockIndex: 0,
+          endBlockIndex: 0,
+          startOffset: 0,
+          endOffset: 0
+        };
+      }
+
+      const startBlockIndex = blocks.findIndex((block) => block.contains(range.startContainer));
+      const endBlockIndex = blocks.findIndex((block) => block.contains(range.endContainer));
+      const safeStartIndex = startBlockIndex === -1 ? 0 : startBlockIndex;
+      const safeEndIndex = endBlockIndex === -1 ? safeStartIndex : endBlockIndex;
+
+      return {
+        collapsed: range.collapsed,
+        startBlockIndex: safeStartIndex,
+        endBlockIndex: safeEndIndex,
+        startOffset: this.getTextOffsetInNode(blocks[safeStartIndex], range.startContainer, range.startOffset),
+        endOffset: this.getTextOffsetInNode(blocks[safeEndIndex], range.endContainer, range.endOffset)
+      };
+    }
+
+    restoreRangeFromBookmarks(bookmarks, newBlocks) {
+      if (newBlocks.length === 0) {
+        return;
+      }
+
+      const startBlock = newBlocks[Math.min(bookmarks.startBlockIndex, newBlocks.length - 1)];
+      const endBlock = newBlocks[Math.min(bookmarks.endBlockIndex, newBlocks.length - 1)];
+      const startPosition = findTextPosition(startBlock, bookmarks.startOffset);
+      const endPosition = bookmarks.collapsed
+        ? startPosition
+        : findTextPosition(endBlock, bookmarks.endOffset);
+
+      const nextRange = document.createRange();
+      nextRange.setStart(startPosition.node, startPosition.offset);
+      if (bookmarks.collapsed) {
+        nextRange.collapse(true);
+      } else {
+        nextRange.setEnd(endPosition.node, endPosition.offset);
+      }
+
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+      this.state.savedRange = nextRange.cloneRange();
+    }
+
+    restoreRangeInConvertedBlocks(originalRange, blocks) {
+      const selectedBlocks = blocks.flatMap((block) => Array.from(block.querySelectorAll("li")));
+      if (selectedBlocks.length === 0) {
+        this.placeCaretAtTextOffset(blocks[0], 0);
+        return;
+      }
+
+      const firstItem = selectedBlocks[0];
+      const offset = this.getTextOffsetInNode(firstItem, originalRange.startContainer, originalRange.startOffset);
+      this.placeCaretAtTextOffset(firstItem, offset);
+    }
+
+    getTextOffsetInNode(root, container, offset) {
+      if (!root) {
+        return 0;
+      }
+
+      let total = 0;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node = walker.nextNode();
+
+      while (node) {
+        if (node === container) {
+          return total + offset;
+        }
+        total += node.textContent.length;
+        node = walker.nextNode();
+      }
+
+      return Math.min(total, offset);
     }
 
     normalizeStructure() {
@@ -1045,6 +1314,31 @@
 
     const cells = row.querySelectorAll("th, td").length || 4;
     return clampInteger(Math.round(100 / cells), 5, 100, 25);
+  }
+
+  function findTextPosition(root, targetOffset) {
+    const safeOffset = Math.max(0, targetOffset);
+    let remaining = safeOffset;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    let lastTextNode = null;
+
+    while (node) {
+      lastTextNode = node;
+      const length = node.textContent.length;
+      if (remaining <= length) {
+        return { node, offset: remaining };
+      }
+      remaining -= length;
+      node = walker.nextNode();
+    }
+
+    if (lastTextNode) {
+      return { node: lastTextNode, offset: lastTextNode.textContent.length };
+    }
+
+    root.appendChild(document.createTextNode(""));
+    return { node: root.firstChild, offset: 0 };
   }
 
   function parseStyle(styleText) {
@@ -1188,6 +1482,14 @@
       parent.insertBefore(node.firstChild, node);
     }
     parent.removeChild(node);
+  }
+
+  function copyElementAttributes(source, target) {
+    Array.from(source.attributes).forEach((attribute) => {
+      if (attribute.name.toLowerCase() === "style") {
+        target.setAttribute(attribute.name, attribute.value);
+      }
+    });
   }
 
   function resolveTextarea(target) {
