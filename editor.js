@@ -154,6 +154,14 @@
     }
 
     bindEvents() {
+      this.container.querySelector(".te__toolbar").addEventListener("mousedown", (event) => {
+        this.saveSelection();
+
+        if (event.target.closest("button[data-action]")) {
+          event.preventDefault();
+        }
+      });
+
       this.container.querySelectorAll("[data-action]").forEach((button) => {
         button.addEventListener("click", () => this.handleAction(button.dataset.action, button.dataset.value));
       });
@@ -431,6 +439,12 @@
     }
 
     restoreSelection() {
+      const liveRange = this.getEditorRange();
+      if (liveRange) {
+        this.state.savedRange = liveRange.cloneRange();
+        return liveRange;
+      }
+
       const selection = window.getSelection();
       if (!this.state.savedRange) {
         this.focusEnd();
@@ -1008,6 +1022,11 @@
     }
 
     getSelectedListItems(range) {
+      if (range.collapsed) {
+        const item = this.closestAncestor(range.commonAncestorContainer, "li");
+        return item ? [item] : [];
+      }
+
       return Array.from(this.surface.querySelectorAll("li")).filter((item) => {
         return range.intersectsNode(item);
       });
