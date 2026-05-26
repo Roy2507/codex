@@ -1,0 +1,222 @@
+:root {
+  --chat-page: #f6f7f9;
+  --chat-panel: #ffffff;
+  --chat-panel-muted: #eef2f6;
+  --chat-border: #d8dee8;
+  --chat-text: #1d2430;
+  --chat-muted: #687386;
+  --chat-accent: #0f766e;
+  --chat-accent-strong: #115e59;
+  --chat-danger: #b42318;
+  --chat-shadow: 0 18px 48px rgba(29, 36, 48, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Segoe UI", "Noto Sans TC", Arial, sans-serif;
+  color: var(--chat-text);
+  background: var(--chat-page);
+}
+
+.chat-page {
+  width: min(1040px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 36px 0 48px;
+}
+
+.chat-hero {
+  margin-bottom: 22px;
+}
+
+.chat-hero__eyebrow {
+  margin: 0 0 10px;
+  color: var(--chat-accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.chat-hero__title {
+  margin: 0;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 1;
+}
+
+.chat-hero__copy {
+  width: min(720px, 100%);
+  margin: 14px 0 0;
+  color: var(--chat-muted);
+  line-height: 1.75;
+}
+
+.chat-shell {
+  overflow: hidden;
+  border: 1px solid var(--chat-border);
+  border-radius: 8px;
+  background: var(--chat-panel);
+  box-shadow: var(--chat-shadow);
+}
+
+.chat-log {
+  display: grid;
+  gap: 16px;
+  height: min(58vh, 620px);
+  min-height: 360px;
+  overflow-y: auto;
+  padding: 22px;
+  align-content: start;
+}
+
+.chat-message {
+  display: grid;
+  gap: 6px;
+  max-width: min(76%, 720px);
+}
+
+.chat-message--user {
+  justify-self: end;
+}
+
+.chat-message--assistant,
+.chat-message--error {
+  justify-self: start;
+}
+
+.chat-message__meta {
+  color: var(--chat-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.chat-message--user .chat-message__meta {
+  text-align: right;
+}
+
+.chat-message__bubble {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--chat-border);
+  border-radius: 8px;
+  padding: 13px 15px;
+  line-height: 1.7;
+  background: var(--chat-panel-muted);
+}
+
+.chat-message--user .chat-message__bubble {
+  border-color: transparent;
+  background: var(--chat-accent);
+  color: #ffffff;
+}
+
+.chat-message--error .chat-message__bubble {
+  border-color: rgba(180, 35, 24, 0.3);
+  background: #fff1f0;
+  color: var(--chat-danger);
+}
+
+.chat-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--chat-border);
+  background: #fbfcfd;
+}
+
+.chat-form__input {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  border: 1px solid var(--chat-border);
+  border-radius: 8px;
+  padding: 14px 15px;
+  color: var(--chat-text);
+  background: #ffffff;
+  font: inherit;
+  line-height: 1.6;
+}
+
+.chat-form__input:focus {
+  outline: 3px solid rgba(15, 118, 110, 0.16);
+  border-color: var(--chat-accent);
+}
+
+.chat-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.chat-button {
+  min-width: 92px;
+  border: 1px solid var(--chat-accent);
+  border-radius: 8px;
+  padding: 11px 18px;
+  background: var(--chat-accent);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-button:hover,
+.chat-button:focus-visible {
+  background: var(--chat-accent-strong);
+  border-color: var(--chat-accent-strong);
+  outline: none;
+}
+
+.chat-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.chat-button--ghost {
+  background: #ffffff;
+  color: var(--chat-accent);
+}
+
+.chat-button--ghost:hover,
+.chat-button--ghost:focus-visible {
+  background: #e6fffb;
+  color: var(--chat-accent-strong);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .chat-page {
+    width: min(100% - 20px, 1040px);
+    padding-top: 24px;
+  }
+
+  .chat-log {
+    height: 54vh;
+    min-height: 320px;
+    padding: 16px;
+  }
+
+  .chat-message {
+    max-width: 92%;
+  }
+
+  .chat-form__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .chat-button {
+    width: 100%;
+  }
+}

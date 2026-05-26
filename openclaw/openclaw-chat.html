@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw PHP Chat</title>
+  <link rel="stylesheet" href="openclaw-chat.css">
+</head>
+<body>
+  <main class="chat-page">
+    <section class="chat-hero">
+      <p class="chat-hero__eyebrow">PHP + OpenClaw</p>
+      <h1 class="chat-hero__title">OpenClaw 聊天室</h1>
+      <p class="chat-hero__copy">
+        透過 PHP 後端代理連線到 OpenClaw Gateway，瀏覽器不會接觸 OpenClaw token。
+      </p>
+    </section>
+
+    <section class="chat-shell" aria-label="OpenClaw chat">
+      <div id="openclaw-chat-log" class="chat-log" aria-live="polite">
+        <article class="chat-message chat-message--assistant">
+          <div class="chat-message__meta">OpenClaw</div>
+          <div class="chat-message__bubble">你好，我已經準備好接收訊息。<br/>請先確認伺服器端有設定 OpenClaw Gateway URL 與 token。</div>
+        </article>
+      </div>
+
+      <form id="openclaw-chat-form" class="chat-form">
+        <label class="sr-only" for="openclaw-chat-input">輸入訊息</label>
+        <textarea
+          id="openclaw-chat-input"
+          class="chat-form__input"
+          name="message"
+          rows="3"
+          placeholder="輸入要傳給 OpenClaw 的訊息..."
+          autocomplete="off"
+          required
+        ></textarea>
+        <div class="chat-form__actions">
+          <button id="openclaw-clear-chat" class="chat-button chat-button--ghost" type="button">清除</button>
+          <button id="openclaw-send-chat" class="chat-button" type="submit">送出</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="openclaw-chat.js"></script>
+</body>
+</html>
