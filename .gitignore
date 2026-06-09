@@ -1,8 +1,17 @@
 # htaccess
 *.htaccess
 
+# 忽略 uploads 底下所有內容
+**/uploads/**
+
+# 但不要忽略 uploads 資料夾本身
+!**/uploads/
+
+# 保留 .gitkeep
+# 因為 Git 不會追蹤空資料夾，如果 uploads 是空的，那 GitHub 上是不會存在這個目錄的
+!**/uploads/.gitkeep
+
 # uploads
-uploads/
 
 # openclaw
-openclaw-config.php
+openclaw/openclaw-config.php
