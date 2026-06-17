@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>功能權限管理元件</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page-shell">
+    <section class="permission-manager" id="permissionManager" aria-labelledby="permissionTitle">
+      <header class="permission-manager__header">
+        <div>
+          <p class="permission-manager__eyebrow">功能權限</p>
+          <h1 class="permission-manager__title" id="permissionTitle">商品管理</h1>
+        </div>
+        <button class="permission-manager__button permission-manager__button--secondary" type="button" data-action="open-modal">
+          查看全部
+        </button>
+      </header>
+
+      <div class="permission-manager__summary" aria-live="polite">
+        <span>已授權使用者</span>
+        <strong data-role="authorized-count">0</strong>
+      </div>
+
+      <div class="permission-manager__tags" data-role="tag-list"></div>
+      <p class="permission-manager__more" data-role="hidden-count"></p>
+
+      <form class="permission-manager__search" data-role="search-form" autocomplete="off">
+        <label class="permission-manager__label" for="permissionSearch">新增使用者</label>
+        <div class="permission-manager__autocomplete">
+          <input
+            class="permission-manager__input"
+            id="permissionSearch"
+            name="permissionSearch"
+            type="search"
+            placeholder="搜尋使用者"
+            aria-autocomplete="list"
+            aria-controls="autocompleteList"
+            aria-expanded="false"
+            data-role="search-input"
+          >
+          <ul class="permission-manager__suggestions" id="autocompleteList" role="listbox" data-role="autocomplete-list"></ul>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <div class="permission-manager__overlay" data-role="overlay" hidden>
+    <section class="permission-manager__modal" role="dialog" aria-modal="true" aria-labelledby="permissionModalTitle">
+      <header class="permission-manager__modal-header">
+        <div>
+          <p class="permission-manager__eyebrow">授權名單</p>
+          <h2 class="permission-manager__modal-title" id="permissionModalTitle">商品管理</h2>
+        </div>
+        <button class="permission-manager__icon-button" type="button" aria-label="關閉" data-action="close-modal">×</button>
+      </header>
+
+      <div class="permission-manager__modal-search">
+        <label class="permission-manager__label" for="modalSearch">搜尋已授權使用者</label>
+        <input class="permission-manager__input" id="modalSearch" type="search" placeholder="輸入姓名、帳號或部門" data-role="modal-search">
+      </div>
+
+      <div class="permission-manager__table-wrap">
+        <table class="permission-manager__table">
+          <thead>
+            <tr>
+              <th scope="col">姓名</th>
+              <th scope="col">帳號</th>
+              <th scope="col">部門</th>
+              <th scope="col">操作</th>
+            </tr>
+          </thead>
+          <tbody data-role="modal-table"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
