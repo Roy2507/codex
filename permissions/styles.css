@@ -299,6 +299,19 @@ input {
   padding: 18px 24px;
 }
 
+.permission-manager__bulk-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 24px 16px;
+}
+
+.permission-manager__selection-status {
+  color: var(--permission-muted);
+  font-size: 14px;
+}
+
 .permission-manager__table-wrap {
   overflow: auto;
   padding: 0 24px 24px;
@@ -324,6 +337,31 @@ input {
   font-size: 13px;
 }
 
+.permission-manager__table-check {
+  width: 44px;
+}
+
+.permission-manager__checkbox-label {
+  display: inline-grid;
+  min-width: 28px;
+  min-height: 28px;
+  place-items: center;
+  cursor: pointer;
+}
+
+.permission-manager__checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--permission-primary);
+  cursor: pointer;
+}
+
+.permission-manager__button:disabled,
+.permission-manager__checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .permission-manager__empty {
   color: var(--permission-muted);
   text-align: center;
@@ -342,6 +380,11 @@ input {
 
   .permission-manager__button--secondary {
     width: 100%;
+  }
+
+  .permission-manager__bulk-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .permission-manager__title {

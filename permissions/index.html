@@ -62,10 +62,22 @@
         <input class="permission-manager__input" id="modalSearch" type="search" placeholder="輸入姓名、帳號或部門" data-role="modal-search">
       </div>
 
+      <div class="permission-manager__bulk-actions">
+        <span class="permission-manager__selection-status" data-role="selection-status">已選取 0 筆</span>
+        <button class="permission-manager__button permission-manager__button--danger" type="button" data-action="remove-selected" disabled>
+          移除已選
+        </button>
+      </div>
+
       <div class="permission-manager__table-wrap">
         <table class="permission-manager__table">
           <thead>
             <tr>
+              <th scope="col" class="permission-manager__table-check">
+                <label class="permission-manager__checkbox-label">
+                  <input class="permission-manager__checkbox" type="checkbox" data-role="select-all" aria-label="全選目前列表">
+                </label>
+              </th>
               <th scope="col">姓名</th>
               <th scope="col">帳號</th>
               <th scope="col">部門</th>

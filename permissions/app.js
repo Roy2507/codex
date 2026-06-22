@@ -20,6 +20,7 @@ class PermissionManager {
     this.activeSuggestionIndex = -1;
     this.filteredSuggestions = [];
     this.modalFilter = "";
+    this.selectedUserIds = new Set();
 
     this.elements = {
       tagList: root.querySelector("[data-role='tag-list']"),
@@ -30,7 +31,10 @@ class PermissionManager {
       autocompleteList: root.querySelector("[data-role='autocomplete-list']"),
       overlay: document.querySelector("[data-role='overlay']"),
       modalSearch: document.querySelector("[data-role='modal-search']"),
-      modalTable: document.querySelector("[data-role='modal-table']")
+      modalTable: document.querySelector("[data-role='modal-table']"),
+      selectAll: document.querySelector("[data-role='select-all']"),
+      selectionStatus: document.querySelector("[data-role='selection-status']"),
+      removeSelectedButton: document.querySelector("[data-action='remove-selected']")
     };
 
     this.bindEvents();
@@ -85,6 +89,18 @@ class PermissionManager {
       this.removeUser(Number(button.dataset.removeId));
     });
 
+    this.elements.modalTable.addEventListener("change", (event) => {
+      const checkbox = event.target.closest("[data-select-id]");
+      if (!checkbox) return;
+      this.toggleUserSelection(Number(checkbox.dataset.selectId), checkbox.checked);
+    });
+
+    this.elements.selectAll.addEventListener("change", () => {
+      this.toggleVisibleUsersSelection(this.elements.selectAll.checked);
+    });
+
+    this.elements.removeSelectedButton.addEventListener("click", () => this.removeSelectedUsers());
+
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         this.closeAutocomplete();
@@ -121,15 +137,13 @@ class PermissionManager {
   }
 
   renderTable() {
-    const users = this.authorizedUsers.filter((user) => {
-      if (!this.modalFilter) return true;
-      const searchable = `${user.name} ${user.account} ${user.department}`.toLowerCase();
-      return searchable.includes(this.modalFilter);
-    });
+    const users = this.getVisibleModalUsers();
 
     this.elements.modalTable.innerHTML = users.length
       ? users.map((user) => this.createTableRowTemplate(user)).join("")
-      : "<tr><td class=\"permission-manager__empty\" colspan=\"4\">沒有符合條件的授權使用者</td></tr>";
+      : "<tr><td class=\"permission-manager__empty\" colspan=\"5\">沒有符合條件的授權使用者</td></tr>";
+
+    this.updateBulkActionState(users);
   }
 
   addUser(userId) {
@@ -147,6 +161,37 @@ class PermissionManager {
 
   removeUser(userId) {
     this.authorizedUsers = this.authorizedUsers.filter((user) => user.id !== userId);
+    this.selectedUserIds.delete(userId);
+    this.syncView();
+  }
+
+  toggleUserSelection(userId, shouldSelect) {
+    if (shouldSelect) {
+      this.selectedUserIds.add(userId);
+    } else {
+      this.selectedUserIds.delete(userId);
+    }
+
+    this.updateBulkActionState(this.getVisibleModalUsers());
+  }
+
+  toggleVisibleUsersSelection(shouldSelect) {
+    this.getVisibleModalUsers().forEach((user) => {
+      if (shouldSelect) {
+        this.selectedUserIds.add(user.id);
+      } else {
+        this.selectedUserIds.delete(user.id);
+      }
+    });
+
+    this.renderTable();
+  }
+
+  removeSelectedUsers() {
+    if (this.selectedUserIds.size === 0) return;
+
+    this.authorizedUsers = this.authorizedUsers.filter((user) => !this.selectedUserIds.has(user.id));
+    this.selectedUserIds.clear();
     this.syncView();
   }
 
@@ -163,6 +208,7 @@ class PermissionManager {
     document.body.style.overflow = "";
     this.elements.modalSearch.value = "";
     this.modalFilter = "";
+    this.selectedUserIds.clear();
     this.renderTable();
   }
 
@@ -201,6 +247,26 @@ class PermissionManager {
     this.renderTable();
   }
 
+  getVisibleModalUsers() {
+    return this.authorizedUsers.filter((user) => {
+      if (!this.modalFilter) return true;
+      const searchable = `${user.name} ${user.account} ${user.department}`.toLowerCase();
+      return searchable.includes(this.modalFilter);
+    });
+  }
+
+  updateBulkActionState(visibleUsers) {
+    const visibleUserIds = visibleUsers.map((user) => user.id);
+    const selectedVisibleTotal = visibleUserIds.filter((id) => this.selectedUserIds.has(id)).length;
+    const selectedTotal = this.selectedUserIds.size;
+
+    this.elements.selectAll.checked = visibleUsers.length > 0 && selectedVisibleTotal === visibleUsers.length;
+    this.elements.selectAll.indeterminate = selectedVisibleTotal > 0 && selectedVisibleTotal < visibleUsers.length;
+    this.elements.selectAll.disabled = visibleUsers.length === 0;
+    this.elements.selectionStatus.textContent = `已選取 ${selectedTotal} 筆`;
+    this.elements.removeSelectedButton.disabled = selectedTotal === 0;
+  }
+
   createTagTemplate(user) {
     return `
       <span class="permission-manager__tag">
@@ -224,8 +290,14 @@ class PermissionManager {
   }
 
   createTableRowTemplate(user) {
+    const isChecked = this.selectedUserIds.has(user.id) ? " checked" : "";
     return `
       <tr>
+        <td class="permission-manager__table-check">
+          <label class="permission-manager__checkbox-label">
+            <input class="permission-manager__checkbox" type="checkbox" data-select-id="${user.id}" aria-label="選取 ${user.name}"${isChecked}>
+          </label>
+        </td>
         <td>${user.name}</td>
         <td>${user.account}</td>
         <td>${user.department}</td>
