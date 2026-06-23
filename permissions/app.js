@@ -13,10 +13,15 @@ const availableUsers = [
 const initialAuthorizedUsers = availableUsers.slice(0, 8);
 
 class PermissionManager {
-  constructor(root, users, authorizedUsers) {
+  constructor(root, users, authorizedUsers, options = {}) {
     this.root = root;
     this.users = users;
     this.authorizedUsers = [...authorizedUsers];
+    this.options = {
+      autocompleteLimit: 50,
+      showSuggestionsWhenEmpty: true,
+      ...options
+    };
     this.activeSuggestionIndex = -1;
     this.filteredSuggestions = [];
     this.modalFilter = "";
@@ -50,6 +55,8 @@ class PermissionManager {
       this.renderAutocomplete();
     });
 
+    this.elements.searchInput.addEventListener("focus", () => this.renderAutocomplete());
+    this.elements.searchInput.addEventListener("click", () => this.renderAutocomplete());
     this.elements.searchInput.addEventListener("keydown", (event) => this.handleAutocompleteKeys(event));
 
     this.elements.searchForm.addEventListener("submit", (event) => {
@@ -109,6 +116,11 @@ class PermissionManager {
 
     this.elements.removeSelectedButton.addEventListener("click", () => this.removeSelectedUsers());
 
+    document.addEventListener("click", (event) => {
+      if (this.root.contains(event.target)) return;
+      this.closeAutocomplete();
+    });
+
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         this.closeAutocomplete();
@@ -131,12 +143,17 @@ class PermissionManager {
     const keyword = this.elements.searchInput.value.trim().toLowerCase();
     const authorizedIds = new Set(this.authorizedUsers.map((user) => this.normalizeUserId(user.id)));
 
-    this.filteredSuggestions = keyword
-      ? this.users.filter((user) => {
+    this.filteredSuggestions = this.users
+      .filter((user) => {
+        if (!keyword && !this.options.showSuggestionsWhenEmpty) return false;
+
         const searchable = `${user.name} ${user.account} ${user.department}`.toLowerCase();
-        return !authorizedIds.has(this.normalizeUserId(user.id)) && searchable.includes(keyword);
+        const isUnauthorized = !authorizedIds.has(this.normalizeUserId(user.id));
+        const isMatched = keyword ? searchable.includes(keyword) : true;
+
+        return isUnauthorized && isMatched;
       })
-      : [];
+      .slice(0, this.options.autocompleteLimit);
 
     this.elements.searchInput.setAttribute("aria-expanded", String(this.filteredSuggestions.length > 0));
     this.elements.autocompleteList.classList.toggle("is-open", this.filteredSuggestions.length > 0);
@@ -356,6 +373,10 @@ document.addEventListener("DOMContentLoaded", () => {
   new PermissionManager(
     document.querySelector("#permissionManager"),
     availableUsers,
-    initialAuthorizedUsers
+    initialAuthorizedUsers,
+    {
+      autocompleteLimit: 50,
+      showSuggestionsWhenEmpty: true
+    }
   );
 });

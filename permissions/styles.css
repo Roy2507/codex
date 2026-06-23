@@ -388,7 +388,7 @@ input {
   opacity: 0.45;
 }
 
-.permission-manager__empty {
+.permission-manager__table .permission-manager__empty {
   color: var(--permission-muted);
   text-align: center;
 }
