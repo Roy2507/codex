@@ -19,6 +19,9 @@ class PermissionManager {
     this.authorizedUsers = [...authorizedUsers];
     this.options = {
       autocompleteLimit: 50,
+      autocompleteViewportPadding: 12,
+      autocompleteGap: 6,
+      autocompleteMaxHeight: 240,
       showSuggestionsWhenEmpty: true,
       ...options
     };
@@ -116,6 +119,9 @@ class PermissionManager {
 
     this.elements.removeSelectedButton.addEventListener("click", () => this.removeSelectedUsers());
 
+    window.addEventListener("resize", () => this.updateAutocompletePosition());
+    window.addEventListener("scroll", () => this.updateAutocompletePosition(), true);
+
     document.addEventListener("click", (event) => {
       if (this.root.contains(event.target)) return;
       this.closeAutocomplete();
@@ -160,6 +166,8 @@ class PermissionManager {
     this.elements.autocompleteList.innerHTML = this.filteredSuggestions
       .map((user, index) => this.createSuggestionTemplate(user, index))
       .join("");
+
+    this.updateAutocompletePosition();
   }
 
   renderTable() {
@@ -278,6 +286,8 @@ class PermissionManager {
     this.filteredSuggestions = [];
     this.elements.searchInput.setAttribute("aria-expanded", "false");
     this.elements.autocompleteList.classList.remove("is-open");
+    this.elements.autocompleteList.classList.remove("is-above", "is-below");
+    this.elements.autocompleteList.style.removeProperty("--autocomplete-max-height");
     this.elements.autocompleteList.innerHTML = "";
   }
 
@@ -305,6 +315,27 @@ class PermissionManager {
     this.elements.selectAll.disabled = visibleUsers.length === 0;
     this.elements.selectionStatus.textContent = `已選取 ${selectedTotal} 筆`;
     this.elements.removeSelectedButton.disabled = selectedTotal === 0;
+  }
+
+  updateAutocompletePosition() {
+    if (!this.elements.autocompleteList.classList.contains("is-open")) return;
+
+    const inputRect = this.elements.searchInput.getBoundingClientRect();
+    const padding = this.options.autocompleteViewportPadding;
+    const gap = this.options.autocompleteGap;
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = Math.max(viewportHeight - inputRect.bottom - padding - gap, 0);
+    const spaceAbove = Math.max(inputRect.top - padding - gap, 0);
+    const shouldOpenAbove = spaceAbove > spaceBelow && spaceBelow < 180;
+    const availableHeight = Math.min(
+      shouldOpenAbove ? spaceAbove : spaceBelow,
+      this.options.autocompleteMaxHeight
+    );
+
+    this.elements.autocompleteList.classList.toggle("is-above", shouldOpenAbove);
+    this.elements.autocompleteList.classList.toggle("is-below", !shouldOpenAbove);
+    this.elements.autocompleteList.style.setProperty("--autocomplete-max-height", `${Math.max(availableHeight, 0)}px`);
+    this.elements.autocompleteList.style.setProperty("--autocomplete-gap", `${gap}px`);
   }
 
   createTagTemplate(user) {
@@ -376,6 +407,9 @@ document.addEventListener("DOMContentLoaded", () => {
     initialAuthorizedUsers,
     {
       autocompleteLimit: 50,
+      autocompleteMaxHeight: 240,
+      autocompleteViewportPadding: 12,
+      autocompleteGap: 6,
       showSuggestionsWhenEmpty: true
     }
   );
