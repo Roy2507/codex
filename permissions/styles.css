@@ -100,6 +100,13 @@ input {
   gap: 10px;
   margin-top: 18px;
   min-height: 38px;
+  transition: max-height 0.18s ease;
+}
+
+.permission-manager__tags.is-expanded {
+  max-height: 152px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .permission-manager__tag {
@@ -140,9 +147,28 @@ input {
 }
 
 .permission-manager__more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin: 12px 0 0;
   color: var(--permission-muted);
   font-size: 14px;
+}
+
+.permission-manager__link-button {
+  border: 0;
+  background: transparent;
+  color: var(--permission-primary);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.permission-manager__link-button:hover {
+  color: var(--permission-primary-dark);
 }
 
 .permission-manager__search {

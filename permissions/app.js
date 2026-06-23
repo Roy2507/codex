@@ -1,13 +1,13 @@
 const availableUsers = [
-  { id: 1, name: "王小明", account: "wang", department: "業務部" },
-  { id: 2, name: "王主任", account: "wang2", department: "業務部" },
-  { id: 3, name: "陳經理", account: "chen", department: "管理部" },
-  { id: 4, name: "李主任", account: "lee", department: "採購部" },
-  { id: 5, name: "張經理", account: "chang", department: "營運部" },
-  { id: 6, name: "林專員", account: "lin", department: "財務部" },
-  { id: 7, name: "黃課長", account: "huang", department: "資訊部" },
-  { id: 8, name: "吳助理", account: "wu", department: "客服部" },
-  { id: 9, name: "周副理", account: "chou", department: "倉儲部" }
+  { id: "1", name: "王小明", account: "wang", department: "業務部" },
+  { id: "2", name: "王主任", account: "wang2", department: "業務部" },
+  { id: "3", name: "陳經理", account: "chen", department: "管理部" },
+  { id: "4", name: "李主任", account: "lee", department: "採購部" },
+  { id: "5", name: "張經理", account: "chang", department: "營運部" },
+  { id: "6", name: "林專員", account: "lin", department: "財務部" },
+  { id: "7", name: "黃課長", account: "huang", department: "資訊部" },
+  { id: "8", name: "吳助理", account: "wu", department: "客服部" },
+  { id: "9", name: "周副理", account: "chou", department: "倉儲部" }
 ];
 
 const initialAuthorizedUsers = availableUsers.slice(0, 8);
@@ -21,6 +21,7 @@ class PermissionManager {
     this.filteredSuggestions = [];
     this.modalFilter = "";
     this.selectedUserIds = new Set();
+    this.isTagExpanded = false;
 
     this.elements = {
       tagList: root.querySelector("[data-role='tag-list']"),
@@ -62,13 +63,20 @@ class PermissionManager {
     this.elements.autocompleteList.addEventListener("mousedown", (event) => {
       const item = event.target.closest("[data-user-id]");
       if (!item) return;
-      this.addUser(Number(item.dataset.userId));
+      this.addUser(item.dataset.userId);
     });
 
     this.elements.tagList.addEventListener("click", (event) => {
       const button = event.target.closest("[data-remove-id]");
       if (!button) return;
-      this.removeUser(Number(button.dataset.removeId));
+      this.removeUser(button.dataset.removeId);
+    });
+
+    this.root.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-action='toggle-tags']");
+      if (!button) return;
+      this.isTagExpanded = !this.isTagExpanded;
+      this.renderTags();
     });
 
     this.root.querySelector("[data-action='open-modal']").addEventListener("click", () => this.openModal());
@@ -86,13 +94,13 @@ class PermissionManager {
     this.elements.modalTable.addEventListener("click", (event) => {
       const button = event.target.closest("[data-remove-id]");
       if (!button) return;
-      this.removeUser(Number(button.dataset.removeId));
+      this.removeUser(button.dataset.removeId);
     });
 
     this.elements.modalTable.addEventListener("change", (event) => {
       const checkbox = event.target.closest("[data-select-id]");
       if (!checkbox) return;
-      this.toggleUserSelection(Number(checkbox.dataset.selectId), checkbox.checked);
+      this.toggleUserSelection(checkbox.dataset.selectId, checkbox.checked);
     });
 
     this.elements.selectAll.addEventListener("change", () => {
@@ -110,22 +118,23 @@ class PermissionManager {
   }
 
   renderTags() {
-    const visibleUsers = this.authorizedUsers.slice(0, 5);
+    const visibleUsers = this.isTagExpanded ? this.authorizedUsers : this.authorizedUsers.slice(0, 5);
     const hiddenTotal = Math.max(this.authorizedUsers.length - visibleUsers.length, 0);
 
     this.elements.authorizedCount.textContent = this.authorizedUsers.length;
+    this.elements.tagList.classList.toggle("is-expanded", this.isTagExpanded);
     this.elements.tagList.innerHTML = visibleUsers.map((user) => this.createTagTemplate(user)).join("");
-    this.elements.hiddenCount.textContent = hiddenTotal > 0 ? `...還有 ${hiddenTotal} 位` : "";
+    this.elements.hiddenCount.innerHTML = this.createMoreTemplate(hiddenTotal);
   }
 
   renderAutocomplete() {
     const keyword = this.elements.searchInput.value.trim().toLowerCase();
-    const authorizedIds = new Set(this.authorizedUsers.map((user) => user.id));
+    const authorizedIds = new Set(this.authorizedUsers.map((user) => this.normalizeUserId(user.id)));
 
     this.filteredSuggestions = keyword
       ? this.users.filter((user) => {
         const searchable = `${user.name} ${user.account} ${user.department}`.toLowerCase();
-        return !authorizedIds.has(user.id) && searchable.includes(keyword);
+        return !authorizedIds.has(this.normalizeUserId(user.id)) && searchable.includes(keyword);
       })
       : [];
 
@@ -147,9 +156,11 @@ class PermissionManager {
   }
 
   addUser(userId) {
-    if (this.authorizedUsers.some((user) => user.id === userId)) return;
+    const normalizedUserId = this.normalizeUserId(userId);
 
-    const user = this.users.find((item) => item.id === userId);
+    if (this.authorizedUsers.some((user) => this.normalizeUserId(user.id) === normalizedUserId)) return;
+
+    const user = this.users.find((item) => this.normalizeUserId(item.id) === normalizedUserId);
     if (!user) return;
 
     this.authorizedUsers.push(user);
@@ -160,16 +171,23 @@ class PermissionManager {
   }
 
   removeUser(userId) {
-    this.authorizedUsers = this.authorizedUsers.filter((user) => user.id !== userId);
-    this.selectedUserIds.delete(userId);
+    const normalizedUserId = this.normalizeUserId(userId);
+
+    this.authorizedUsers = this.authorizedUsers.filter((user) => this.normalizeUserId(user.id) !== normalizedUserId);
+    this.selectedUserIds.delete(normalizedUserId);
+    if (this.authorizedUsers.length <= 5) {
+      this.isTagExpanded = false;
+    }
     this.syncView();
   }
 
   toggleUserSelection(userId, shouldSelect) {
+    const normalizedUserId = this.normalizeUserId(userId);
+
     if (shouldSelect) {
-      this.selectedUserIds.add(userId);
+      this.selectedUserIds.add(normalizedUserId);
     } else {
-      this.selectedUserIds.delete(userId);
+      this.selectedUserIds.delete(normalizedUserId);
     }
 
     this.updateBulkActionState(this.getVisibleModalUsers());
@@ -177,10 +195,12 @@ class PermissionManager {
 
   toggleVisibleUsersSelection(shouldSelect) {
     this.getVisibleModalUsers().forEach((user) => {
+      const normalizedUserId = this.normalizeUserId(user.id);
+
       if (shouldSelect) {
-        this.selectedUserIds.add(user.id);
+        this.selectedUserIds.add(normalizedUserId);
       } else {
-        this.selectedUserIds.delete(user.id);
+        this.selectedUserIds.delete(normalizedUserId);
       }
     });
 
@@ -190,8 +210,11 @@ class PermissionManager {
   removeSelectedUsers() {
     if (this.selectedUserIds.size === 0) return;
 
-    this.authorizedUsers = this.authorizedUsers.filter((user) => !this.selectedUserIds.has(user.id));
+    this.authorizedUsers = this.authorizedUsers.filter((user) => !this.selectedUserIds.has(this.normalizeUserId(user.id)));
     this.selectedUserIds.clear();
+    if (this.authorizedUsers.length <= 5) {
+      this.isTagExpanded = false;
+    }
     this.syncView();
   }
 
@@ -256,7 +279,7 @@ class PermissionManager {
   }
 
   updateBulkActionState(visibleUsers) {
-    const visibleUserIds = visibleUsers.map((user) => user.id);
+    const visibleUserIds = visibleUsers.map((user) => this.normalizeUserId(user.id));
     const selectedVisibleTotal = visibleUserIds.filter((id) => this.selectedUserIds.has(id)).length;
     const selectedTotal = this.selectedUserIds.size;
 
@@ -276,6 +299,20 @@ class PermissionManager {
     `;
   }
 
+  createMoreTemplate(hiddenTotal) {
+    if (this.authorizedUsers.length <= 5) return "";
+
+    const buttonText = this.isTagExpanded ? "收合" : "顯示更多";
+    const hiddenText = hiddenTotal > 0 ? `...還有 ${hiddenTotal} 位` : "已顯示全部";
+
+    return `
+      <span>${hiddenText}</span>
+      <button class="permission-manager__link-button" type="button" data-action="toggle-tags" aria-expanded="${this.isTagExpanded}">
+        ${buttonText}
+      </button>
+    `;
+  }
+
   createSuggestionTemplate(user, index) {
     const activeClass = index === this.activeSuggestionIndex ? " is-active" : "";
     return `
@@ -290,7 +327,7 @@ class PermissionManager {
   }
 
   createTableRowTemplate(user) {
-    const isChecked = this.selectedUserIds.has(user.id) ? " checked" : "";
+    const isChecked = this.selectedUserIds.has(this.normalizeUserId(user.id)) ? " checked" : "";
     return `
       <tr>
         <td class="permission-manager__table-check">
@@ -308,6 +345,10 @@ class PermissionManager {
         </td>
       </tr>
     `;
+  }
+
+  normalizeUserId(userId) {
+    return String(userId);
   }
 }
 
