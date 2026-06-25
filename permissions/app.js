@@ -12,11 +12,18 @@ const availableUsers = [
 
 const initialAuthorizedUsers = availableUsers.slice(0, 8);
 
+// 功能權限管理元件：每個 root 都是一個獨立實例，可在同頁重複初始化。
 class PermissionManager {
   constructor(root, users, authorizedUsers, options = {}) {
+    if (!root) {
+      throw new Error("PermissionManager: root element is required.");
+    }
+
     this.root = root;
     this.users = users;
     this.authorizedUsers = [...authorizedUsers];
+
+    // 可調設定集中在這裡，之後要改 autocomplete 筆數、尺寸、空白顯示行為，不需要改方法內部。
     this.options = {
       autocompleteLimit: 50,
       autocompleteViewportPadding: 12,
@@ -25,6 +32,8 @@ class PermissionManager {
       showSuggestionsWhenEmpty: true,
       ...options
     };
+
+    this.instanceId = PermissionManager.createInstanceId();
     this.activeSuggestionIndex = -1;
     this.filteredSuggestions = [];
     this.modalFilter = "";
@@ -38,20 +47,52 @@ class PermissionManager {
       searchForm: root.querySelector("[data-role='search-form']"),
       searchInput: root.querySelector("[data-role='search-input']"),
       autocompleteList: root.querySelector("[data-role='autocomplete-list']"),
-      overlay: document.querySelector("[data-role='overlay']"),
-      modalSearch: document.querySelector("[data-role='modal-search']"),
-      modalTable: document.querySelector("[data-role='modal-table']"),
-      selectAll: document.querySelector("[data-role='select-all']"),
-      selectionStatus: document.querySelector("[data-role='selection-status']"),
-      removeSelectedButton: document.querySelector("[data-action='remove-selected']")
+      openModalButton: root.querySelector("[data-action='open-modal']"),
+      overlay: root.querySelector("[data-role='overlay']"),
+      closeModalButton: root.querySelector("[data-action='close-modal']"),
+      modalTitle: root.querySelector("[data-role='modal-title']"),
+      modalSearchLabel: root.querySelector("[data-role='modal-search-label']"),
+      modalSearch: root.querySelector("[data-role='modal-search']"),
+      modalTable: root.querySelector("[data-role='modal-table']"),
+      selectAll: root.querySelector("[data-role='select-all']"),
+      selectionStatus: root.querySelector("[data-role='selection-status']"),
+      removeSelectedButton: root.querySelector("[data-action='remove-selected']")
     };
 
+    this.bindAccessibilityIds();
     this.bindEvents();
     this.renderTags();
     this.renderAutocomplete();
     this.renderTable();
   }
 
+  // 讓同頁多個元件不會共用相同 id，避免 label、aria-controls、dialog title 指錯實例。
+  static createInstanceId() {
+    PermissionManager.instanceCounter = (PermissionManager.instanceCounter || 0) + 1;
+    return `permission-manager-${PermissionManager.instanceCounter}`;
+  }
+
+  // HTML 可以複製多份，實際 id 在初始化時由 JS 產生並綁定。
+  bindAccessibilityIds() {
+    const titleId = `${this.instanceId}-title`;
+    const searchId = `${this.instanceId}-search`;
+    const autocompleteId = `${this.instanceId}-autocomplete`;
+    const modalTitleId = `${this.instanceId}-modal-title`;
+    const modalSearchId = `${this.instanceId}-modal-search`;
+
+    this.root.setAttribute("aria-labelledby", titleId);
+    this.root.querySelector(".permission-manager__title").id = titleId;
+    this.root.querySelector(".permission-manager__search .permission-manager__label").setAttribute("for", searchId);
+    this.elements.searchInput.id = searchId;
+    this.elements.searchInput.setAttribute("aria-controls", autocompleteId);
+    this.elements.autocompleteList.id = autocompleteId;
+    this.elements.overlay.querySelector("[role='dialog']").setAttribute("aria-labelledby", modalTitleId);
+    this.elements.modalTitle.id = modalTitleId;
+    this.elements.modalSearchLabel.setAttribute("for", modalSearchId);
+    this.elements.modalSearch.id = modalSearchId;
+  }
+
+  // 綁定所有互動事件；事件只操作 this.root 內的元素，支援同頁多實例。
   bindEvents() {
     this.elements.searchInput.addEventListener("input", () => {
       this.activeSuggestionIndex = -1;
@@ -89,8 +130,8 @@ class PermissionManager {
       this.renderTags();
     });
 
-    this.root.querySelector("[data-action='open-modal']").addEventListener("click", () => this.openModal());
-    this.elements.overlay.querySelector("[data-action='close-modal']").addEventListener("click", () => this.closeModal());
+    this.elements.openModalButton.addEventListener("click", () => this.openModal());
+    this.elements.closeModalButton.addEventListener("click", () => this.closeModal());
 
     this.elements.overlay.addEventListener("click", (event) => {
       if (event.target === this.elements.overlay) this.closeModal();
@@ -135,6 +176,7 @@ class PermissionManager {
     });
   }
 
+  // 主畫面 Tag 摘要：預設只顯示 5 位，展開後顯示全部並由 CSS 控制高度。
   renderTags() {
     const visibleUsers = this.isTagExpanded ? this.authorizedUsers : this.authorizedUsers.slice(0, 5);
     const hiddenTotal = Math.max(this.authorizedUsers.length - visibleUsers.length, 0);
@@ -145,6 +187,7 @@ class PermissionManager {
     this.elements.hiddenCount.innerHTML = this.createMoreTemplate(hiddenTotal);
   }
 
+  // 新增使用者 autocomplete：支援空白顯示未加入者、關鍵字過濾、筆數上限。
   renderAutocomplete() {
     const keyword = this.elements.searchInput.value.trim().toLowerCase();
     const authorizedIds = new Set(this.authorizedUsers.map((user) => this.normalizeUserId(user.id)));
@@ -170,6 +213,7 @@ class PermissionManager {
     this.updateAutocompletePosition();
   }
 
+  // Modal 表格會依搜尋條件重繪，並同步更新全選與批次移除狀態。
   renderTable() {
     const users = this.getVisibleModalUsers();
 
@@ -180,6 +224,7 @@ class PermissionManager {
     this.updateBulkActionState(users);
   }
 
+  // 新增授權使用者；id 一律字串化後比較，避免資料庫回傳字串 id 時判斷失準。
   addUser(userId) {
     const normalizedUserId = this.normalizeUserId(userId);
 
@@ -195,6 +240,7 @@ class PermissionManager {
     this.elements.searchInput.focus();
   }
 
+  // 單筆移除會同步更新 Tag、Modal Table、授權人數與批次選取集合。
   removeUser(userId) {
     const normalizedUserId = this.normalizeUserId(userId);
 
@@ -206,6 +252,7 @@ class PermissionManager {
     this.syncView();
   }
 
+  // 切換單列 checkbox，selectedUserIds 只存正規化後的 id。
   toggleUserSelection(userId, shouldSelect) {
     const normalizedUserId = this.normalizeUserId(userId);
 
@@ -218,6 +265,7 @@ class PermissionManager {
     this.updateBulkActionState(this.getVisibleModalUsers());
   }
 
+  // 表頭全選只套用目前 Modal 表格中「可見」的資料。
   toggleVisibleUsersSelection(shouldSelect) {
     this.getVisibleModalUsers().forEach((user) => {
       const normalizedUserId = this.normalizeUserId(user.id);
@@ -232,6 +280,7 @@ class PermissionManager {
     this.renderTable();
   }
 
+  // 批次移除 selectedUserIds 內的資料，再清空選取狀態。
   removeSelectedUsers() {
     if (this.selectedUserIds.size === 0) return;
 
@@ -243,13 +292,16 @@ class PermissionManager {
     this.syncView();
   }
 
+  // 開啟此實例自己的 Modal；不影響同頁其他 PermissionManager。
   openModal() {
+    this.closeAutocomplete();
     this.elements.overlay.hidden = false;
     document.body.style.overflow = "hidden";
     this.renderTable();
     this.elements.modalSearch.focus();
   }
 
+  // 關閉 Modal 時重置 Modal 搜尋與批次選取。
   closeModal() {
     if (this.elements.overlay.hidden) return;
     this.elements.overlay.hidden = true;
@@ -260,6 +312,7 @@ class PermissionManager {
     this.renderTable();
   }
 
+  // autocomplete 鍵盤操作：上下鍵移動高亮，Enter 加入目前高亮項目。
   handleAutocompleteKeys(event) {
     if (!this.filteredSuggestions.length) return;
 
@@ -281,6 +334,7 @@ class PermissionManager {
     }
   }
 
+  // 關閉 autocomplete 並清掉定位 class / inline CSS 變數。
   closeAutocomplete() {
     this.activeSuggestionIndex = -1;
     this.filteredSuggestions = [];
@@ -291,12 +345,14 @@ class PermissionManager {
     this.elements.autocompleteList.innerHTML = "";
   }
 
+  // 單一狀態變更後集中重繪，確保主畫面與 Modal 內容一致。
   syncView() {
     this.renderTags();
     this.renderAutocomplete();
     this.renderTable();
   }
 
+  // Modal 搜尋只影響授權名單表格，不影響主畫面的 autocomplete。
   getVisibleModalUsers() {
     return this.authorizedUsers.filter((user) => {
       if (!this.modalFilter) return true;
@@ -305,6 +361,7 @@ class PermissionManager {
     });
   }
 
+  // 控制表頭全選的 checked / indeterminate，以及批次移除按鈕可用狀態。
   updateBulkActionState(visibleUsers) {
     const visibleUserIds = visibleUsers.map((user) => this.normalizeUserId(user.id));
     const selectedVisibleTotal = visibleUserIds.filter((id) => this.selectedUserIds.has(id)).length;
@@ -317,6 +374,7 @@ class PermissionManager {
     this.elements.removeSelectedButton.disabled = selectedTotal === 0;
   }
 
+  // 依輸入框在 viewport 中的位置，決定 autocomplete 往上或往下展開並限制高度。
   updateAutocompletePosition() {
     if (!this.elements.autocompleteList.classList.contains("is-open")) return;
 
@@ -338,6 +396,7 @@ class PermissionManager {
     this.elements.autocompleteList.style.setProperty("--autocomplete-gap", `${gap}px`);
   }
 
+  // 以下 create*Template 方法只負責回傳 HTML 字串，資料處理集中在前面的狀態方法。
   createTagTemplate(user) {
     return `
       <span class="permission-manager__tag">
