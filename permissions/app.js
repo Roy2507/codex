@@ -36,6 +36,7 @@ class PermissionManager {
     this.instanceId = PermissionManager.createInstanceId();
     this.activeSuggestionIndex = -1;
     this.filteredSuggestions = [];
+    this.isAutocompleteOpen = false;
     this.modalFilter = "";
     this.selectedUserIds = new Set();
     this.isTagExpanded = false;
@@ -96,11 +97,11 @@ class PermissionManager {
   bindEvents() {
     this.elements.searchInput.addEventListener("input", () => {
       this.activeSuggestionIndex = -1;
-      this.renderAutocomplete();
+      this.openAutocomplete();
     });
 
-    this.elements.searchInput.addEventListener("focus", () => this.renderAutocomplete());
-    this.elements.searchInput.addEventListener("click", () => this.renderAutocomplete());
+    this.elements.searchInput.addEventListener("focus", () => this.openAutocomplete());
+    this.elements.searchInput.addEventListener("click", () => this.openAutocomplete());
     this.elements.searchInput.addEventListener("keydown", (event) => this.handleAutocompleteKeys(event));
 
     this.elements.searchForm.addEventListener("submit", (event) => {
@@ -204,8 +205,10 @@ class PermissionManager {
       })
       .slice(0, this.options.autocompleteLimit);
 
-    this.elements.searchInput.setAttribute("aria-expanded", String(this.filteredSuggestions.length > 0));
-    this.elements.autocompleteList.classList.toggle("is-open", this.filteredSuggestions.length > 0);
+    const shouldShowAutocomplete = this.isAutocompleteOpen && this.filteredSuggestions.length > 0;
+
+    this.elements.searchInput.setAttribute("aria-expanded", String(shouldShowAutocomplete));
+    this.elements.autocompleteList.classList.toggle("is-open", shouldShowAutocomplete);
     this.elements.autocompleteList.innerHTML = this.filteredSuggestions
       .map((user, index) => this.createSuggestionTemplate(user, index))
       .join("");
@@ -236,6 +239,7 @@ class PermissionManager {
     this.authorizedUsers.push(user);
     this.elements.searchInput.value = "";
     this.activeSuggestionIndex = -1;
+    this.closeAutocomplete();
     this.syncView();
     this.elements.searchInput.focus();
   }
@@ -244,6 +248,7 @@ class PermissionManager {
   removeUser(userId) {
     const normalizedUserId = this.normalizeUserId(userId);
 
+    this.closeAutocomplete();
     this.authorizedUsers = this.authorizedUsers.filter((user) => this.normalizeUserId(user.id) !== normalizedUserId);
     this.selectedUserIds.delete(normalizedUserId);
     if (this.authorizedUsers.length <= 5) {
@@ -284,6 +289,7 @@ class PermissionManager {
   removeSelectedUsers() {
     if (this.selectedUserIds.size === 0) return;
 
+    this.closeAutocomplete();
     this.authorizedUsers = this.authorizedUsers.filter((user) => !this.selectedUserIds.has(this.normalizeUserId(user.id)));
     this.selectedUserIds.clear();
     if (this.authorizedUsers.length <= 5) {
@@ -336,6 +342,7 @@ class PermissionManager {
 
   // 關閉 autocomplete 並清掉定位 class / inline CSS 變數。
   closeAutocomplete() {
+    this.isAutocompleteOpen = false;
     this.activeSuggestionIndex = -1;
     this.filteredSuggestions = [];
     this.elements.searchInput.setAttribute("aria-expanded", "false");
@@ -343,6 +350,12 @@ class PermissionManager {
     this.elements.autocompleteList.classList.remove("is-above", "is-below");
     this.elements.autocompleteList.style.removeProperty("--autocomplete-max-height");
     this.elements.autocompleteList.innerHTML = "";
+  }
+
+  // 使用者主動操作搜尋框時才開啟 autocomplete；初始化或資料重繪不會自動展開。
+  openAutocomplete() {
+    this.isAutocompleteOpen = true;
+    this.renderAutocomplete();
   }
 
   // 單一狀態變更後集中重繪，確保主畫面與 Modal 內容一致。
