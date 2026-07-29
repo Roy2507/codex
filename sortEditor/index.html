@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Inline Sort Editor</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="page-head">
+        <div>
+          <h1 class="page-title">Inline Sort Editor</h1>
+          <p class="page-note">點擊排序碼即可編輯；Enter 儲存，Esc 取消，Tab / Shift+Tab 移動列，方向鍵調整數值。</p>
+        </div>
+        <div id="status" class="status" role="status">尚未排序</div>
+      </header>
+
+      <section class="table-wrap" aria-label="排序編輯表格">
+        <table id="moduleTable" class="data-table">
+          <thead>
+            <tr>
+              <th>排序</th>
+              <th>模組代碼</th>
+              <th>模組名稱</th>
+              <th>狀態</th>
+              <th>最後更新</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-id="MKT" data-sort-value="1">
+              <td class="sort-cell" data-sort-cell>1</td>
+              <td>MKT</td>
+              <td>行銷活動管理</td>
+              <td>啟用</td>
+              <td>2026-07-15</td>
+            </tr>
+            <tr data-id="CRM" data-sort-value="2">
+              <td class="sort-cell" data-sort-cell>2</td>
+              <td>CRM</td>
+              <td>客戶資料維護</td>
+              <td>啟用</td>
+              <td>2026-07-18</td>
+            </tr>
+            <tr data-id="RPT" data-sort-value="3">
+              <td class="sort-cell" data-sort-cell>3</td>
+              <td>RPT</td>
+              <td>報表中心</td>
+              <td>啟用</td>
+              <td>2026-07-19</td>
+            </tr>
+            <tr data-id="WF" data-sort-value="4">
+              <td class="sort-cell" data-sort-cell>4</td>
+              <td>WF</td>
+              <td>簽核流程</td>
+              <td>停用</td>
+              <td>2026-07-20</td>
+            </tr>
+            <tr data-id="ADM" data-sort-value="5">
+              <td class="sort-cell" data-sort-cell>5</td>
+              <td>ADM</td>
+              <td>系統管理</td>
+              <td>啟用</td>
+              <td>2026-07-21</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="log-panel" aria-label="Hook 執行紀錄">
+        <h2 class="log-title">Hook Log</h2>
+        <ol id="logList" class="log-list"></ol>
+      </section>
+    </main>
+
+    <script type="module">
+      import InlineSortEditor from './InlineSortEditor.js';
+
+      const status = document.querySelector('#status');
+      const logList = document.querySelector('#logList');
+
+      function addLog(message) {
+        const item = document.createElement('li');
+        item.textContent = message;
+        logList.prepend(item);
+      }
+
+      window.moduleSortEditor = new InlineSortEditor('#moduleTable', {
+        onBeforeSort({ row, requestedValue, normalizedValue }) {
+          addLog(`onBeforeSort: ${row.dataset.id} 請求移至 ${requestedValue}，實際位置 ${normalizedValue}`);
+          return true;
+        },
+        saveSort({ rows }) {
+          const payload = rows.map((row) => ({
+            id: row.dataset.id,
+            sort: Number(row.dataset.sortValue)
+          }));
+          status.textContent = `已保存 ${payload.length} 筆排序`;
+          addLog(`saveSort: ${JSON.stringify(payload)}`);
+        },
+        onAfterSort({ row, normalizedValue }) {
+          addLog(`onAfterSort: ${row.dataset.id} 已移至第 ${normalizedValue} 位`);
+        }
+      });
+    </script>
+  </body>
+</html>
