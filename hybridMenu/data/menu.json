@@ -1,0 +1,134 @@
+{
+  "brand": {
+    "label": "HybridMenu",
+    "href": "./index.html"
+  },
+  "settings": {
+    "sticky": true,
+    "breakpoint": 768,
+    "theme": "light",
+    "interactionMode": "hybrid",
+    "hoverDelay": 90
+  },
+  "navigation": [
+    {
+      "id": "products",
+      "type": "mega",
+      "label": "Products",
+      "columns": [
+        {
+          "title": "Platform",
+          "items": [
+            {
+              "label": "Navigation Core",
+              "href": "#",
+              "description": "State-driven menu primitives."
+            },
+            {
+              "label": "Design Tokens",
+              "href": "#",
+              "description": "Themeable CSS variables."
+            },
+            {
+              "label": "Mobile Drawer",
+              "href": "#",
+              "description": "Touch-friendly responsive navigation."
+            }
+          ]
+        },
+        {
+          "title": "Use Cases",
+          "items": [
+            {
+              "label": "SaaS Websites",
+              "href": "#",
+              "description": "Dense product and solution navigation."
+            },
+            {
+              "label": "Documentation",
+              "href": "#",
+              "description": "Grouped docs entry points."
+            },
+            {
+              "label": "Commerce",
+              "href": "#",
+              "description": "Categories, promotions, and quick links."
+            }
+          ]
+        }
+      ],
+      "featured": {
+        "title": "New: JSON renderer",
+        "description": "Build the full menu from a single structured data source.",
+        "href": "#"
+      }
+    },
+    {
+      "id": "solutions",
+      "type": "dropdown",
+      "label": "Solutions",
+      "children": [
+        {
+          "label": "Marketing Sites",
+          "href": "#",
+          "description": "Flexible top-level navigation."
+        },
+        {
+          "label": "Product Apps",
+          "href": "#",
+          "description": "Utility actions and compact menus."
+        },
+        {
+          "label": "Editorial",
+          "href": "#",
+          "description": "Clear topic and section routing."
+        }
+      ]
+    },
+    {
+      "id": "resources",
+      "type": "dropdown",
+      "label": "Resources",
+      "children": [
+        {
+          "label": "Documentation",
+          "href": "./docs/architecture.md"
+        },
+        {
+          "label": "API",
+          "href": "./docs/api.md"
+        },
+        {
+          "label": "Schema",
+          "href": "./docs/schema.md"
+        }
+      ]
+    },
+    {
+      "id": "pricing",
+      "type": "link",
+      "label": "Pricing",
+      "href": "#"
+    }
+  ],
+  "actions": [
+    {
+      "id": "theme",
+      "type": "theme-toggle",
+      "label": "Toggle theme"
+    },
+    {
+      "id": "signin",
+      "type": "link",
+      "label": "Sign in",
+      "href": "#"
+    },
+    {
+      "id": "start",
+      "type": "link",
+      "label": "Get started",
+      "href": "#",
+      "variant": "primary"
+    }
+  ]
+}

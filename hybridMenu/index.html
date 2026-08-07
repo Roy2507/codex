@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="HybridMenu demo with header, dropdown, mega menu, mobile navigation, keyboard support, and themes.">
+    <title>HybridMenu Demo</title>
+    <link rel="stylesheet" href="./css/tokens.css">
+    <link rel="stylesheet" href="./css/base.css">
+    <link rel="stylesheet" href="./css/header.css">
+    <link rel="stylesheet" href="./css/dropdown.css">
+    <link rel="stylesheet" href="./css/mega-menu.css">
+    <link rel="stylesheet" href="./css/mobile-nav.css">
+    <link rel="stylesheet" href="./css/themes.css">
+    <link rel="stylesheet" href="./css/utilities.css">
+  </head>
+  <body>
+    <div id="hybrid-menu" data-menu-source="./data/menu.json"></div>
+
+    <main class="demo-page" id="main-content">
+      <section class="demo-hero" aria-labelledby="demo-title">
+        <p class="demo-kicker">Hybrid Navigation System</p>
+        <h1 id="demo-title">A responsive menu built from JSON.</h1>
+        <p class="demo-copy">Explore dropdowns, mega menus, mobile navigation, keyboard controls, accessible states, animation, and dark theme support.</p>
+      </section>
+      <section class="demo-grid" aria-label="Feature summary">
+        <article>
+          <h2>Header</h2>
+          <p>Sticky layout with brand, primary navigation, utility actions, and scroll state.</p>
+        </article>
+        <article>
+          <h2>Menus</h2>
+          <p>Traditional dropdowns and large multi-column mega menus share one state system.</p>
+        </article>
+        <article>
+          <h2>Mobile</h2>
+          <p>Drawer navigation uses accordion sections, overlay close, and focus management.</p>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>

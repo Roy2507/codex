@@ -1,0 +1,21 @@
+html[data-theme="dark"] {
+  --hm-color-bg: #101318;
+  --hm-color-surface: #171b22;
+  --hm-color-surface-raised: #1f2530;
+  --hm-color-text: #edf2f7;
+  --hm-color-muted: #a4afbf;
+  --hm-color-border: #303846;
+  --hm-color-accent: #2dd4bf;
+  --hm-color-accent-strong: #14b8a6;
+  --hm-color-accent-soft: #123c39;
+  --hm-color-overlay: rgb(0 0 0 / 62%);
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] .hm-theme-icon--sun {
+  display: none;
+}
+
+html[data-theme="dark"] .hm-theme-icon--moon {
+  display: block;
+}

@@ -1,0 +1,28 @@
+# Testing Checklist
+
+- Header renders with brand, navigation, actions, and mobile toggle.
+- Header adds scrolled state after page scroll.
+- Dropdown opens with click.
+- Dropdown opens with hover on desktop.
+- Mega menu opens with click.
+- Mega menu opens with hover on desktop.
+- Escape closes active desktop menu.
+- Outside click closes active desktop menu.
+- Enter and Space toggle menu triggers.
+- Arrow Left and Arrow Right move across top-level desktop items.
+- Arrow Down opens a menu and focuses the first menu item.
+- Arrow Up and Arrow Down move inside open panels.
+- Home and End move to first and last panel items.
+- Mobile toggle opens drawer below 768px.
+- Mobile overlay closes drawer.
+- Mobile close button closes drawer.
+- Mobile drawer traps Tab focus while open.
+- Mobile accordion sections expand and collapse.
+- Theme toggle switches light and dark themes.
+- Theme preference persists in localStorage.
+- `aria-expanded` updates on desktop triggers.
+- `aria-expanded` updates on mobile triggers.
+- `aria-hidden` updates on mobile drawer.
+- Reduced motion preference disables long transitions.
+- Long menu text remains inside its container.
+- No console errors appear during normal interaction.
