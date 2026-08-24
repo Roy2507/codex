@@ -80,8 +80,7 @@ export function bindEvents(root, state, options = {}) {
     if (mobileTrigger) {
       const id = mobileTrigger.dataset.mobileTrigger;
       state.update((current) => {
-        const expanded = new Set(current.expandedMobileItems);
-        expanded.has(id) ? expanded.delete(id) : expanded.add(id);
+        const expanded = current.expandedMobileItems.has(id) ? new Set() : new Set([id]);
         return { ...current, expandedMobileItems: expanded };
       });
       return;
