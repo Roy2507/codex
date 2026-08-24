@@ -1,9 +1,9 @@
 .hm-dropdown {
   position: absolute;
   top: 100%;
-  left: 0;
   z-index: var(--hm-z-dropdown);
   min-width: 17rem;
+  max-width: calc(100vw - 2rem);
   padding: var(--hm-space-2);
   border: 1px solid var(--hm-color-border);
   border-radius: var(--hm-radius-md);

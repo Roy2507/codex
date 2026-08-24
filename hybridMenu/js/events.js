@@ -94,11 +94,17 @@ export function bindEvents(root, state, options = {}) {
 
   root.addEventListener("pointerover", (event) => {
     const menuItem = event.target.closest("[data-menu-item]");
+    const panel = event.target.closest("[data-menu-panel]");
     const trigger = event.target.closest("[data-menu-trigger]");
     if (!menuItem || desktopQuery()) return;
 
     window.clearTimeout(hoverTimer);
-    if (!trigger) return;
+    if (panel) return;
+
+    if (!trigger) {
+      api.closeAll();
+      return;
+    }
 
     hoverTimer = window.setTimeout(() => api.openMenu(trigger.dataset.menuTrigger), options.hoverDelay || 90);
   });

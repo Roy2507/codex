@@ -1,7 +1,6 @@
 .hm-mega {
   position: absolute;
   top: 100%;
-  left: 50%;
   z-index: var(--hm-z-dropdown);
   display: grid;
   grid-template-columns: 1fr minmax(14rem, 18rem);
@@ -14,14 +13,14 @@
   box-shadow: var(--hm-shadow-lg);
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -0.4rem);
+  transform: translateY(-0.4rem);
   transition: opacity var(--hm-duration) var(--hm-ease), transform var(--hm-duration) var(--hm-ease);
 }
 
 .hm-nav__item.is-open > .hm-mega {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, 0);
+  transform: translateY(0);
 }
 
 .hm-mega__columns {
