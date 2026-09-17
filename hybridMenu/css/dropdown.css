@@ -2,6 +2,7 @@
   position: absolute;
   top: 100%;
   z-index: var(--hm-z-dropdown);
+  display: none;
   min-width: 17rem;
   max-width: calc(100vw - 2rem);
   padding: var(--hm-space-2);
@@ -16,6 +17,7 @@
 }
 
 .hm-nav__item.is-open > .hm-dropdown {
+  display: block;
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
