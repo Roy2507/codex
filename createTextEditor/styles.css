@@ -315,6 +315,23 @@ body {
   line-height: 1.85;
 }
 
+.response__grid {
+  display: grid;
+  gap: 18px;
+}
+
+.response__language {
+  padding: 16px;
+  border: 1px solid rgba(31, 41, 55, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.response__language h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
 @media (max-width: 720px) {
   .page {
     width: min(100% - 20px, 1160px);

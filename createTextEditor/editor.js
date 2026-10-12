@@ -22,13 +22,19 @@
     "padding",
     "margin"
   ]);
+  const EDITOR_INSTANCES = new WeakMap();
+  let nextEditorId = 1;
 
   class TextEditor {
     constructor(textarea, options = {}) {
       this.textarea = textarea;
       this.options = options;
+      this.id = `te-${nextEditorId}`;
+      nextEditorId += 1;
       this.uploadUrl = options.uploadUrl || "upload.php";
       this.placeholder = options.placeholder || textarea.getAttribute("placeholder") || "請輸入內容...";
+      this.listeners = [];
+      this.destroyed = false;
       this.state = {
         sourceMode: false,
         savedRange: null,
@@ -49,9 +55,11 @@
     build() {
       this.textarea.hidden = true;
       this.textarea.classList.add("editor-textarea");
+      this.textarea.dataset.textEditorId = this.id;
 
       this.container = document.createElement("section");
       this.container.className = "te";
+      this.container.dataset.textEditorId = this.id;
       this.container.innerHTML = `
         <div class="te__toolbar">
           <div class="te__group">
@@ -154,7 +162,7 @@
     }
 
     bindEvents() {
-      this.container.querySelector(".te__toolbar").addEventListener("mousedown", (event) => {
+      this.on(this.container.querySelector(".te__toolbar"), "mousedown", (event) => {
         this.saveSelection();
 
         if (event.target.closest("button[data-action]")) {
@@ -163,24 +171,24 @@
       });
 
       this.container.querySelectorAll("[data-action]").forEach((button) => {
-        button.addEventListener("click", () => this.handleAction(button.dataset.action, button.dataset.value));
+        this.on(button, "click", () => this.handleAction(button.dataset.action, button.dataset.value));
       });
 
-      this.blockSelect.addEventListener("change", () => {
+      this.on(this.blockSelect, "change", () => {
         if (!this.state.sourceMode) {
           this.applyBlock(this.blockSelect.value);
         }
       });
 
-      this.surface.addEventListener("mouseup", () => this.saveSelection());
-      this.surface.addEventListener("keyup", () => this.saveSelection());
-      this.surface.addEventListener("focus", () => this.saveSelection());
-      this.surface.addEventListener("input", () => {
+      this.on(this.surface, "mouseup", () => this.saveSelection());
+      this.on(this.surface, "keyup", () => this.saveSelection());
+      this.on(this.surface, "focus", () => this.saveSelection());
+      this.on(this.surface, "input", () => {
         this.normalizeStructure();
         this.syncToTextarea();
       });
 
-      this.surface.addEventListener("click", (event) => {
+      this.on(this.surface, "click", (event) => {
         if (event.target instanceof HTMLImageElement) {
           this.clearCellSelection();
           this.selectEditorImage(event.target);
@@ -193,17 +201,29 @@
         }
       });
 
-      this.source.addEventListener("input", () => {
+      this.on(this.source, "input", () => {
         this.textarea.value = minifyHtml(this.cleanupHtml(this.source.value));
         this.updateStatus();
       });
 
-      this.imageWidthRange.addEventListener("input", () => this.resizeSelectedImage(this.imageWidthRange.value));
-      this.imageWidthNumber.addEventListener("change", () => this.resizeSelectedImage(this.imageWidthNumber.value));
-      this.cellWidthRange.addEventListener("input", () => this.resizeSelectedCell(this.cellWidthRange.value));
-      this.cellWidthNumber.addEventListener("change", () => this.resizeSelectedCell(this.cellWidthNumber.value));
+      this.on(this.imageWidthRange, "input", () => this.resizeSelectedImage(this.imageWidthRange.value));
+      this.on(this.imageWidthNumber, "change", () => this.resizeSelectedImage(this.imageWidthNumber.value));
+      this.on(this.cellWidthRange, "input", () => this.resizeSelectedCell(this.cellWidthRange.value));
+      this.on(this.cellWidthNumber, "change", () => this.resizeSelectedCell(this.cellWidthNumber.value));
 
-      this.tableMenu.addEventListener("click", (event) => event.stopPropagation());
+      this.on(this.tableMenu, "click", (event) => event.stopPropagation());
+    }
+
+    on(target, type, handler, options) {
+      target.addEventListener(type, handler, options);
+      this.listeners.push({ target, type, handler, options });
+    }
+
+    offAll() {
+      this.listeners.forEach(({ target, type, handler, options }) => {
+        target.removeEventListener(type, handler, options);
+      });
+      this.listeners = [];
     }
 
     handleAction(action, value) {
@@ -451,6 +471,12 @@
         return this.getEditorRange();
       }
 
+      if (!this.isRangeInsideEditor(this.state.savedRange)) {
+        this.state.savedRange = null;
+        this.focusEnd();
+        return this.getEditorRange();
+      }
+
       selection.removeAllRanges();
       selection.addRange(this.state.savedRange);
       return this.state.savedRange;
@@ -468,6 +494,18 @@
         : range.commonAncestorContainer;
 
       return this.surface.contains(ancestor) ? range : null;
+    }
+
+    isRangeInsideEditor(range) {
+      if (!range) {
+        return false;
+      }
+
+      const ancestor = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? range.commonAncestorContainer.parentNode
+        : range.commonAncestorContainer;
+
+      return Boolean(ancestor && ancestor.isConnected && this.surface.contains(ancestor));
     }
 
     focusEnd() {
@@ -1310,6 +1348,36 @@
       this.blocksNode.textContent = `${blockCount} 段`;
       this.modeNode.textContent = this.state.sourceMode ? "原始碼模式" : "視覺模式";
     }
+
+    sync() {
+      return this.getHtml();
+    }
+
+    focus() {
+      this.restoreSelection();
+      return this;
+    }
+
+    isActiveSelection() {
+      return Boolean(this.getEditorRange());
+    }
+
+    destroy() {
+      if (this.destroyed) {
+        return;
+      }
+
+      this.getHtml();
+      this.offAll();
+      this.clearImageSelection();
+      this.clearCellSelection();
+      this.container.remove();
+      this.textarea.hidden = false;
+      this.textarea.classList.remove("editor-textarea");
+      delete this.textarea.dataset.textEditorId;
+      EDITOR_INSTANCES.delete(this.textarea);
+      this.destroyed = true;
+    }
   }
 
   function clampInteger(value, min, max, fallback) {
@@ -1528,6 +1596,18 @@
 
   window.createTextEditor = function createTextEditor(target, options = {}) {
     const textarea = resolveTextarea(target);
-    return new TextEditor(textarea, options);
+    const existing = EDITOR_INSTANCES.get(textarea);
+
+    if (existing && !options.recreate) {
+      return existing;
+    }
+
+    if (existing && options.recreate) {
+      existing.destroy();
+    }
+
+    const editor = new TextEditor(textarea, options);
+    EDITOR_INSTANCES.set(textarea, editor);
+    return editor;
   };
 })();

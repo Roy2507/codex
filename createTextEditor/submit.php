@@ -218,14 +218,36 @@ function sanitizeStyle(string $styleText): string
 }
 
 $title = trim((string) ($_POST['title'] ?? ''));
-$content = (string) ($_POST['editor'] ?? '');
-$safeContent = sanitizeSubmittedHtml($content);
+$contents = [
+    [
+        'key' => 'editor_zh',
+        'label' => '繁體中文'
+    ],
+    [
+        'key' => 'editor_ja',
+        'label' => '日本語'
+    ],
+    [
+        'key' => 'editor_en',
+        'label' => 'English'
+    ]
+];
+
+$safeContents = array_map(static function (array $item): array {
+    $content = (string) ($_POST[$item['key']] ?? '');
+
+    return [
+        'key' => $item['key'],
+        'label' => $item['label'],
+        'content' => sanitizeSubmittedHtml($content)
+    ];
+}, $contents);
 
 echo json_encode([
     'success' => true,
     'data' => [
         'title' => $title,
-        'content' => $safeContent,
+        'contents' => $safeContents,
         'submitted_at' => date('Y-m-d H:i:s')
     ]
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

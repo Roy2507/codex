@@ -25,11 +25,29 @@
         </div>
 
         <div class="field">
-          <label class="field__label" for="editor">文章內容</label>
-          <textarea id="editor" name="editor">
+          <label class="field__label" for="editor-zh">文章內容：繁體中文</label>
+          <textarea id="editor-zh" name="editor_zh" class="js-text-editor" placeholder="請輸入繁體中文內容">
 <h2>開始撰寫內容</h2>
 <p>這個欄位原本是 textarea，經過 createTextEditor() 初始化後，就會變成富文本編輯器。</p>
 <p>送出時仍然會把 HTML 內容同步回原本的 textarea，再透過 Ajax 傳到 PHP。</p>
+          </textarea>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="editor-ja">文章內容：日本語</label>
+          <textarea id="editor-ja" name="editor_ja" class="js-text-editor" placeholder="日本語の内容を入力してください">
+<h2>日本語の本文</h2>
+<p>この欄は textarea から createTextEditor() によってリッチテキストエディターになります。</p>
+<p>送信時には HTML が元の textarea に同期され、Ajax で PHP に送られます。</p>
+          </textarea>
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="editor-en">文章內容：English</label>
+          <textarea id="editor-en" name="editor_en" class="js-text-editor" placeholder="Enter English content">
+<h2>English Content</h2>
+<p>This field starts as a textarea and becomes a rich text editor through createTextEditor().</p>
+<p>On submit, the HTML is synced back to the original textarea and sent to PHP with Ajax.</p>
           </textarea>
         </div>
 
@@ -43,7 +61,7 @@
       <p class="response__eyebrow">Server Response</p>
       <h2 id="response-title" class="response__title"></h2>
       <p id="response-meta" class="response__meta"></p>
-      <div id="response-content" class="response__content"></div>
+      <div id="response-content" class="response__content response__grid"></div>
     </section>
   </main>
 
