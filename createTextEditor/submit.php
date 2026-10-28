@@ -20,7 +20,7 @@ function sanitizeSubmittedHtml(string $html): string
 
     $allowedTags = [
         'p', 'br', 'h1', 'h2', 'h3', 'h4', 'blockquote',
-        'ul', 'ol', 'li', 'strong', 'em', 'u', 's', 'a',
+        'ul', 'ol', 'li', 'strong', 'em', 'u', 's', 'span', 'a',
         'img', 'table', 'caption', 'thead', 'tbody', 'tr', 'th', 'td'
     ];
 
@@ -46,7 +46,8 @@ function sanitizeSubmittedHtml(string $html): string
         'strong' => ['style'],
         'em' => ['style'],
         'u' => ['style'],
-        's' => ['style']
+        's' => ['style'],
+        'span' => ['style']
     ];
 
     $dom = new DOMDocument('1.0', 'UTF-8');

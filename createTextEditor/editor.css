@@ -73,6 +73,36 @@
   font-size: 0.92rem;
 }
 
+.te__color-tools {
+  gap: 12px;
+}
+
+.te__color-control {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.te__color-label {
+  color: var(--te-text-soft);
+  font-size: 0.92rem;
+}
+
+.te__color-input {
+  width: 34px;
+  height: 34px;
+  padding: 3px;
+  border: 1px solid rgba(31, 41, 55, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.te__color-input:focus-visible {
+  outline: none;
+  border-color: var(--te-focus);
+}
+
 .te__button,
 .te__select,
 .te__number,

@@ -3,7 +3,7 @@
   const INLINE_FORMAT_SELECTOR = "strong, em, u, s";
   const ALLOWED_TAGS = new Set([
     "P", "BR", "H1", "H2", "H3", "H4", "BLOCKQUOTE",
-    "UL", "OL", "LI", "STRONG", "EM", "U", "S", "A",
+    "UL", "OL", "LI", "STRONG", "EM", "U", "S", "SPAN", "A",
     "IMG", "TABLE", "CAPTION", "THEAD", "TBODY", "TR", "TH", "TD"
   ]);
   const ALLOWED_STYLE_PROPS = new Set([
@@ -86,6 +86,20 @@
             <button type="button" class="te__button" data-action="s" title="刪除線"><s>S</s></button>
             <button type="button" class="te__button" data-action="clear-format" title="清除粗體、斜體、底線與刪除線">清除格式</button>
           </div>
+          <div class="te__group te__color-tools">
+            <div class="te__color-control">
+              <span class="te__color-label">字體</span>
+              <input class="te__color-input" type="color" value="#1f2937" data-role="text-color" aria-label="字體顏色" title="字體顏色">
+              <button type="button" class="te__button" data-action="clear-text-color" title="清除字體顏色">清除</button>
+              <button type="button" class="te__button" data-action="apply-text-color" title="套用字體顏色">套用</button>
+            </div>
+            <div class="te__color-control">
+              <span class="te__color-label">背景</span>
+              <input class="te__color-input" type="color" value="#fff59d" data-role="background-color" aria-label="背景顏色" title="背景顏色">
+              <button type="button" class="te__button" data-action="clear-background-color" title="清除背景顏色">清除</button>
+              <button type="button" class="te__button" data-action="apply-background-color" title="套用背景顏色">套用</button>
+            </div>
+          </div>
           <div class="te__group">
             <button type="button" class="te__button" data-action="align" data-value="left" title="靠左">靠左</button>
             <button type="button" class="te__button" data-action="align" data-value="center" title="置中">置中</button>
@@ -139,6 +153,10 @@
           <button type="button" class="te__button" data-action="cell-auto">自動</button>
           <span class="te__image-label">表格標題</span>
           <input class="te__input" type="text" data-role="cell-table-caption" placeholder="可留空" aria-label="表格標題">
+          <span class="te__image-label">表格背景</span>
+          <input class="te__color-input" type="color" value="#ffffff" data-role="table-background-color" aria-label="表格背景顏色" title="表格背景顏色">
+          <span class="te__image-label">儲存格背景</span>
+          <input class="te__color-input" type="color" value="#ffffff" data-role="cell-background-color" aria-label="儲存格背景顏色" title="儲存格背景顏色">
           <button type="button" class="te__button" data-action="row-before">上方加列</button>
           <button type="button" class="te__button" data-action="row-after">下方加列</button>
           <button type="button" class="te__button" data-action="row-delete">刪除列</button>
@@ -163,6 +181,8 @@
       this.wordsNode = this.container.querySelector('[data-role="words"]');
       this.blocksNode = this.container.querySelector('[data-role="blocks"]');
       this.modeNode = this.container.querySelector('[data-role="mode"]');
+      this.textColorInput = this.container.querySelector('[data-role="text-color"]');
+      this.backgroundColorInput = this.container.querySelector('[data-role="background-color"]');
       this.tableRowsInput = this.container.querySelector('[data-role="table-rows"]');
       this.tableColsInput = this.container.querySelector('[data-role="table-cols"]');
       this.tableHeaderInput = this.container.querySelector('[data-role="table-header"]');
@@ -177,6 +197,8 @@
       this.cellWidthRange = this.container.querySelector('[data-role="cell-width-range"]');
       this.cellWidthNumber = this.container.querySelector('[data-role="cell-width-number"]');
       this.cellTableCaptionInput = this.container.querySelector('[data-role="cell-table-caption"]');
+      this.tableBackgroundColorInput = this.container.querySelector('[data-role="table-background-color"]');
+      this.cellBackgroundColorInput = this.container.querySelector('[data-role="cell-background-color"]');
       this.surface.dataset.placeholder = this.placeholder;
 
       this.textarea.insertAdjacentElement("afterend", this.container);
@@ -232,6 +254,8 @@
       this.on(this.cellWidthRange, "input", () => this.resizeSelectedCell(this.cellWidthRange.value));
       this.on(this.cellWidthNumber, "change", () => this.resizeSelectedCell(this.cellWidthNumber.value));
       this.on(this.cellTableCaptionInput, "input", () => this.updateSelectedTableCaption(this.cellTableCaptionInput.value));
+      this.on(this.tableBackgroundColorInput, "change", () => this.setSelectedTableBackground(this.tableBackgroundColorInput.value));
+      this.on(this.cellBackgroundColorInput, "change", () => this.setSelectedCellBackground(this.cellBackgroundColorInput.value));
 
       this.on(this.tableMenu, "click", (event) => event.stopPropagation());
       this.on(window, "resize", () => this.positionTableMenu());
@@ -328,6 +352,26 @@
 
       if (action === "clear-format") {
         this.clearInlineFormatting();
+        return;
+      }
+
+      if (action === "clear-text-color") {
+        this.clearTextColor("color");
+        return;
+      }
+
+      if (action === "apply-text-color") {
+        this.applyTextColor("color", this.textColorInput.value);
+        return;
+      }
+
+      if (action === "clear-background-color") {
+        this.clearTextColor("background-color");
+        return;
+      }
+
+      if (action === "apply-background-color") {
+        this.applyTextColor("background-color", this.backgroundColorInput.value);
         return;
       }
 
@@ -609,6 +653,127 @@
 
       this.normalizeStructure();
       this.syncToTextarea();
+    }
+
+    applyTextColor(property, value) {
+      if (!isHexColor(value) || !["color", "background-color"].includes(property)) {
+        return;
+      }
+
+      const range = this.restoreSelection();
+      if (!range) {
+        return;
+      }
+
+      const span = document.createElement("span");
+      this.setStyleDeclaration(span, property, value);
+
+      if (range.collapsed) {
+        span.appendChild(document.createTextNode("\u200B"));
+        this.insertNode(span, true);
+      } else {
+        this.wrapSelection(span);
+        const nextRange = document.createRange();
+        nextRange.selectNodeContents(span);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(nextRange);
+        this.state.savedRange = nextRange.cloneRange();
+      }
+
+      this.normalizeStructure();
+      this.syncToTextarea();
+    }
+
+    clearTextColor(property) {
+      if (!["color", "background-color"].includes(property)) {
+        return;
+      }
+
+      const range = this.restoreSelection();
+      if (!range) {
+        return;
+      }
+
+      if (range.collapsed) {
+        this.getColorStyleAncestors(range.startContainer, property)
+          .forEach((node) => this.removeColorStyle(node, property));
+      } else {
+        const hasColors = Array.from(this.surface.querySelectorAll("[style]")).some((node) => {
+          const style = parseStyle(node.getAttribute("style"));
+          return range.intersectsNode(node) && style.has(property);
+        });
+        if (!hasColors) {
+          return;
+        }
+
+        const startBlock = this.closestBlock(range.startContainer);
+        const endBlock = this.closestBlock(range.endContainer);
+        const fragment = range.extractContents();
+        this.removeColorStylesFromFragment(fragment, property);
+        const insertedNodes = Array.from(fragment.childNodes);
+
+        if (startBlock !== endBlock) {
+          [startBlock, endBlock].forEach((block) => this.removeEmptyBoundaryBlock(block));
+        }
+
+        range.insertNode(fragment);
+        this.restoreSelectedNodes(insertedNodes);
+      }
+
+      this.normalizeStructure();
+      this.syncToTextarea();
+    }
+
+    getColorStyleAncestors(node, property) {
+      const styledNodes = [];
+      let current = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+
+      while (current && current !== this.surface) {
+        if (current instanceof Element && current.hasAttribute("style")) {
+          const style = parseStyle(current.getAttribute("style"));
+          if (style.has(property)) {
+            styledNodes.push(current);
+          }
+        }
+        current = current.parentNode;
+      }
+
+      return styledNodes;
+    }
+
+    removeColorStylesFromFragment(fragment, property) {
+      Array.from(fragment.querySelectorAll("[style]")).forEach((node) => this.removeColorStyle(node, property));
+      Array.from(fragment.querySelectorAll("span")).forEach((node) => {
+        if (node.attributes.length === 0) {
+          unwrapNode(node);
+        }
+      });
+    }
+
+    removeColorStyle(node, property) {
+      const style = parseStyle(node.getAttribute("style") || "");
+      style.delete(property);
+      const safeStyle = serializeStyle(style);
+      if (safeStyle) {
+        node.setAttribute("style", safeStyle);
+      } else {
+        node.removeAttribute("style");
+      }
+    }
+
+    restoreSelectedNodes(nodes) {
+      if (nodes.length === 0) {
+        return;
+      }
+
+      const nextRange = document.createRange();
+      nextRange.setStartBefore(nodes[0]);
+      nextRange.setEndAfter(nodes[nodes.length - 1]);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+      this.state.savedRange = nextRange.cloneRange();
     }
 
     clearInlineFormatting() {
@@ -979,7 +1144,10 @@
       const widthValue = readPercentWidth(cell) || estimateCellWidth(cell);
       this.cellWidthRange.value = widthValue;
       this.cellWidthNumber.value = widthValue;
-      this.cellTableCaptionInput.value = this.getTableCaption(cell.closest("table"));
+      const table = cell.closest("table");
+      this.cellTableCaptionInput.value = this.getTableCaption(table);
+      this.tableBackgroundColorInput.value = readHexColorStyle(table, "background-color") || "#ffffff";
+      this.cellBackgroundColorInput.value = readHexColorStyle(cell, "background-color") || "#ffffff";
     }
 
     clearCellSelection() {
@@ -989,6 +1157,8 @@
       this.state.selectedCell = null;
       this.cellTools.hidden = true;
       this.cellTableCaptionInput.value = "";
+      this.tableBackgroundColorInput.value = "#ffffff";
+      this.cellBackgroundColorInput.value = "#ffffff";
     }
 
     resizeSelectedCell(value) {
@@ -1013,6 +1183,27 @@
       cell.style.removeProperty("width");
       this.cellWidthRange.value = estimateCellWidth(cell);
       this.cellWidthNumber.value = estimateCellWidth(cell);
+      this.syncSelectedCellToTextarea();
+    }
+
+    setSelectedTableBackground(value) {
+      const cell = this.state.selectedCell;
+      const table = cell ? cell.closest("table") : null;
+      if (!table || !isHexColor(value)) {
+        return;
+      }
+
+      this.setStyleDeclaration(table, "background-color", value);
+      this.syncSelectedCellToTextarea();
+    }
+
+    setSelectedCellBackground(value) {
+      const cell = this.state.selectedCell;
+      if (!cell || !isHexColor(value)) {
+        return;
+      }
+
+      this.setStyleDeclaration(cell, "background-color", value);
       this.syncSelectedCellToTextarea();
     }
 
@@ -1568,6 +1759,19 @@
   function readPercentWidth(element) {
     const match = (element.getAttribute("style") || "").match(/(?:^|;)\s*width\s*:\s*(\d+(?:\.\d+)?)%/i);
     return match ? clampInteger(match[1], 10, 100, 100) : null;
+  }
+
+  function isHexColor(value) {
+    return /^#[0-9a-f]{6}$/i.test(String(value || "").trim());
+  }
+
+  function readHexColorStyle(element, property) {
+    if (!element) {
+      return null;
+    }
+
+    const value = parseStyle(element.getAttribute("style") || "").get(property);
+    return isHexColor(value) ? value : null;
   }
 
   function estimateCellWidth(cell) {
