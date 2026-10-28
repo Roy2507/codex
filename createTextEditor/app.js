@@ -48,6 +48,9 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         responseContent.appendChild(section);
       });
+
+      form.reset();
+      editors.forEach((editor) => editor.setHtml("<p></p>"));
     } catch (error) {
       window.alert(error.message || "送出失敗");
     }

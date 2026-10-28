@@ -63,6 +63,10 @@
       this.container.innerHTML = `
         <div class="te__toolbar">
           <div class="te__group">
+            <button type="button" class="te__button" data-action="code" title="原始碼">原始碼</button>
+            <button type="button" class="te__button" data-action="clear" title="清空">清空</button>
+          </div>
+          <div class="te__group">
             <button type="button" class="te__button" data-action="undo" title="復原">復原</button>
             <button type="button" class="te__button" data-action="redo" title="重做">重做</button>
           </div>
@@ -88,39 +92,39 @@
           <div class="te__group">
             <button type="button" class="te__button" data-action="unordered-list" title="項目清單">清單</button>
             <button type="button" class="te__button" data-action="ordered-list" title="編號清單">編號</button>
+          </div>
+          <div class="te__group">
             <button type="button" class="te__button" data-action="link" title="連結">連結</button>
+          </div>
+          <div class="te__group">
             <button type="button" class="te__button" data-action="image" title="圖片">圖片</button>
           </div>
           <div class="te__group te__table-tools">
             <button type="button" class="te__button" data-action="table-menu" title="表格">表格</button>
             <div class="te__table-menu" hidden>
-              <label class="te__menu-field">
+              <div class="te__menu-field">
                 <span>列數</span>
-                <input class="te__number" type="number" min="1" max="20" value="2" data-role="table-rows" title="列數">
-              </label>
-              <label class="te__menu-field">
+                <input class="te__number" type="number" min="1" max="20" value="2" data-role="table-rows" aria-label="表格列數" title="列數">
+              </div>
+              <div class="te__menu-field">
                 <span>欄數</span>
-                <input class="te__number" type="number" min="1" max="12" value="2" data-role="table-cols" title="欄數">
-              </label>
+                <input class="te__number" type="number" min="1" max="12" value="2" data-role="table-cols" aria-label="表格欄數" title="欄數">
+              </div>
               <button type="button" class="te__button" data-action="table-insert" title="插入表格">插入表格</button>
             </div>
           </div>
-          <div class="te__group">
-            <button type="button" class="te__button" data-action="code" title="原始碼">原始碼</button>
-            <button type="button" class="te__button" data-action="clear" title="清空">清空</button>
-          </div>
         </div>
         <div class="te__image-tools" hidden>
-          <label class="te__image-label">圖片寬度</label>
-          <input class="te__range" type="range" min="10" max="100" value="100" data-role="image-width-range">
-          <input class="te__number" type="number" min="10" max="100" value="100" data-role="image-width-number">
+            <span class="te__image-label">圖片寬度</span>
+            <input class="te__range" type="range" min="10" max="100" value="100" data-role="image-width-range" aria-label="圖片寬度百分比">
+            <input class="te__number" type="number" min="10" max="100" value="100" data-role="image-width-number" aria-label="圖片寬度百分比">
           <span class="te__muted">%</span>
           <button type="button" class="te__button" data-action="image-original">自動</button>
         </div>
         <div class="te__cell-tools" hidden>
-          <label class="te__image-label">儲存格寬度</label>
-          <input class="te__range" type="range" min="5" max="100" value="25" data-role="cell-width-range">
-          <input class="te__number" type="number" min="5" max="100" value="25" data-role="cell-width-number">
+            <span class="te__image-label">儲存格寬度</span>
+            <input class="te__range" type="range" min="5" max="100" value="25" data-role="cell-width-range" aria-label="儲存格寬度百分比">
+            <input class="te__number" type="number" min="5" max="100" value="25" data-role="cell-width-number" aria-label="儲存格寬度百分比">
           <span class="te__muted">%</span>
           <button type="button" class="te__button" data-action="cell-auto">自動</button>
           <button type="button" class="te__button" data-action="row-before">上方加列</button>
