@@ -149,6 +149,8 @@
       this.modeNode = this.container.querySelector('[data-role="mode"]');
       this.tableRowsInput = this.container.querySelector('[data-role="table-rows"]');
       this.tableColsInput = this.container.querySelector('[data-role="table-cols"]');
+      this.tableMenuButton = this.container.querySelector('[data-action="table-menu"]');
+        this.tableTools = this.container.querySelector(".te__table-tools");
       this.tableMenu = this.container.querySelector(".te__table-menu");
       this.imageTools = this.container.querySelector(".te__image-tools");
       this.imageWidthRange = this.container.querySelector('[data-role="image-width-range"]');
@@ -212,6 +214,8 @@
       this.on(this.cellWidthNumber, "change", () => this.resizeSelectedCell(this.cellWidthNumber.value));
 
       this.on(this.tableMenu, "click", (event) => event.stopPropagation());
+      this.on(window, "resize", () => this.positionTableMenu());
+      this.on(window, "scroll", () => this.positionTableMenu(), true);
     }
 
     on(target, type, handler, options) {
@@ -744,11 +748,46 @@
     toggleTableMenu() {
       this.state.tableMenuOpen = !this.state.tableMenuOpen;
       this.tableMenu.hidden = !this.state.tableMenuOpen;
+
+      if (this.state.tableMenuOpen) {
+        this.positionTableMenu();
+      }
     }
 
     hideTableMenu() {
       this.state.tableMenuOpen = false;
       this.tableMenu.hidden = true;
+      this.tableMenu.style.left = "";
+      this.tableMenu.style.top = "";
+    }
+
+    positionTableMenu() {
+      if (!this.state.tableMenuOpen || this.tableMenu.hidden) {
+        return;
+      }
+
+      const margin = 12;
+      const buttonRect = this.tableMenuButton.getBoundingClientRect();
+        const toolsRect = this.tableTools.getBoundingClientRect();
+      const editorRect = this.container.getBoundingClientRect();
+
+      this.tableMenu.style.visibility = "hidden";
+      this.tableMenu.style.left = "0px";
+
+      const menuRect = this.tableMenu.getBoundingClientRect();
+        const minLeft = editorRect.left + margin - toolsRect.left;
+        const maxLeft = editorRect.right - margin - toolsRect.left - menuRect.width;
+        let left = 0;
+
+        // Keep the menu attached to its button; only flip it left at the editor edge.
+        if (toolsRect.left + left + menuRect.width > editorRect.right - margin) {
+          left = buttonRect.right - toolsRect.left - menuRect.width;
+      }
+
+        left = Math.max(minLeft, Math.min(left, maxLeft));
+
+      this.tableMenu.style.left = `${Math.round(left)}px`;
+      this.tableMenu.style.visibility = "";
     }
 
     selectImage() {
