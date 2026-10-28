@@ -65,9 +65,18 @@
   font-size: 0.92rem;
 }
 
+.te__menu-toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--te-text-soft);
+  font-size: 0.92rem;
+}
+
 .te__button,
 .te__select,
-.te__number {
+.te__number,
+.te__input {
   border: 1px solid rgba(31, 41, 55, 0.12);
   border-radius: 12px;
   background: #fff;
@@ -90,12 +99,17 @@
 }
 
 .te__select,
-.te__number {
+.te__number,
+.te__input {
   padding: 8px 10px;
 }
 
 .te__number {
   width: 64px;
+}
+
+.te__input {
+  min-width: 0;
 }
 
 .te__muted {
@@ -174,10 +188,24 @@
 .te__surface table {
   width: 100%;
   border-collapse: collapse;
+  caption-side: inherit;
+}
+
+.te__surface caption {
+  padding: 8px 10px;
+  color: var(--te-text-soft);
+  font-weight: 700;
+  text-align: left;
 }
 
 .te__surface th,
 .te__surface td {
   padding: 10px;
   border: 1px solid rgba(31, 41, 55, 0.14);
+}
+
+.te__surface ul,
+.te__surface ol{
+  list-style: inherit;
+  padding-left: 1.35rem;
 }

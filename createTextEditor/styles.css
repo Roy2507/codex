@@ -131,6 +131,13 @@ body {
   border-collapse: collapse;
 }
 
+.response__content caption {
+  padding: 8px 10px;
+  color: var(--text-soft);
+  font-weight: 700;
+  text-align: left;
+}
+
 .response__content th,
 .response__content td {
   padding: 10px;

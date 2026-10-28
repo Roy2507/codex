@@ -21,13 +21,14 @@ function sanitizeSubmittedHtml(string $html): string
     $allowedTags = [
         'p', 'br', 'h1', 'h2', 'h3', 'h4', 'blockquote',
         'ul', 'ol', 'li', 'strong', 'em', 'u', 's', 'a',
-        'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td'
+        'img', 'table', 'caption', 'thead', 'tbody', 'tr', 'th', 'td'
     ];
 
     $allowedAttributes = [
         'a' => ['href', 'target', 'rel', 'style'],
         'img' => ['src', 'alt', 'style'],
         'table' => ['style'],
+        'caption' => ['style'],
         'thead' => ['style'],
         'tbody' => ['style'],
         'tr' => ['style'],

@@ -1,9 +1,10 @@
 (function () {
-  const BLOCK_SELECTOR = "p, h1, h2, h3, h4, h5, h6, blockquote, li, td, th";
+  const BLOCK_SELECTOR = "p, h1, h2, h3, h4, h5, h6, blockquote, li, caption, td, th";
+  const INLINE_FORMAT_SELECTOR = "strong, em, u, s";
   const ALLOWED_TAGS = new Set([
     "P", "BR", "H1", "H2", "H3", "H4", "BLOCKQUOTE",
     "UL", "OL", "LI", "STRONG", "EM", "U", "S", "A",
-    "IMG", "TABLE", "THEAD", "TBODY", "TR", "TH", "TD"
+    "IMG", "TABLE", "CAPTION", "THEAD", "TBODY", "TR", "TH", "TD"
   ]);
   const ALLOWED_STYLE_PROPS = new Set([
     "text-align",
@@ -83,6 +84,7 @@
             <button type="button" class="te__button" data-action="em" title="斜體"><em>I</em></button>
             <button type="button" class="te__button" data-action="u" title="底線"><u>U</u></button>
             <button type="button" class="te__button" data-action="s" title="刪除線"><s>S</s></button>
+            <button type="button" class="te__button" data-action="clear-format" title="清除粗體、斜體、底線與刪除線">清除格式</button>
           </div>
           <div class="te__group">
             <button type="button" class="te__button" data-action="align" data-value="left" title="靠左">靠左</button>
@@ -110,6 +112,14 @@
                 <span>欄數</span>
                 <input class="te__number" type="number" min="1" max="12" value="2" data-role="table-cols" aria-label="表格欄數" title="欄數">
               </div>
+              <div class="te__menu-toggle">
+                <input type="checkbox" data-role="table-header" checked aria-label="含標題列">
+                <span>含標題列</span>
+              </div>
+              <div class="te__menu-field">
+                <span>表格標題</span>
+                <input class="te__input" type="text" data-role="table-caption" placeholder="可留空" aria-label="表格標題">
+              </div>
               <button type="button" class="te__button" data-action="table-insert" title="插入表格">插入表格</button>
             </div>
           </div>
@@ -127,6 +137,8 @@
             <input class="te__number" type="number" min="5" max="100" value="25" data-role="cell-width-number" aria-label="儲存格寬度百分比">
           <span class="te__muted">%</span>
           <button type="button" class="te__button" data-action="cell-auto">自動</button>
+          <span class="te__image-label">表格標題</span>
+          <input class="te__input" type="text" data-role="cell-table-caption" placeholder="可留空" aria-label="表格標題">
           <button type="button" class="te__button" data-action="row-before">上方加列</button>
           <button type="button" class="te__button" data-action="row-after">下方加列</button>
           <button type="button" class="te__button" data-action="row-delete">刪除列</button>
@@ -153,6 +165,8 @@
       this.modeNode = this.container.querySelector('[data-role="mode"]');
       this.tableRowsInput = this.container.querySelector('[data-role="table-rows"]');
       this.tableColsInput = this.container.querySelector('[data-role="table-cols"]');
+      this.tableHeaderInput = this.container.querySelector('[data-role="table-header"]');
+      this.tableCaptionInput = this.container.querySelector('[data-role="table-caption"]');
       this.tableMenuButton = this.container.querySelector('[data-action="table-menu"]');
         this.tableTools = this.container.querySelector(".te__table-tools");
       this.tableMenu = this.container.querySelector(".te__table-menu");
@@ -162,6 +176,7 @@
       this.cellTools = this.container.querySelector(".te__cell-tools");
       this.cellWidthRange = this.container.querySelector('[data-role="cell-width-range"]');
       this.cellWidthNumber = this.container.querySelector('[data-role="cell-width-number"]');
+      this.cellTableCaptionInput = this.container.querySelector('[data-role="cell-table-caption"]');
       this.surface.dataset.placeholder = this.placeholder;
 
       this.textarea.insertAdjacentElement("afterend", this.container);
@@ -216,6 +231,7 @@
       this.on(this.imageWidthNumber, "change", () => this.resizeSelectedImage(this.imageWidthNumber.value));
       this.on(this.cellWidthRange, "input", () => this.resizeSelectedCell(this.cellWidthRange.value));
       this.on(this.cellWidthNumber, "change", () => this.resizeSelectedCell(this.cellWidthNumber.value));
+      this.on(this.cellTableCaptionInput, "input", () => this.updateSelectedTableCaption(this.cellTableCaptionInput.value));
 
       this.on(this.tableMenu, "click", (event) => event.stopPropagation());
       this.on(window, "resize", () => this.positionTableMenu());
@@ -307,6 +323,11 @@
 
       if (action === "strong" || action === "em" || action === "u" || action === "s") {
         this.applyInline(action);
+        return;
+      }
+
+      if (action === "clear-format") {
+        this.clearInlineFormatting();
         return;
       }
 
@@ -590,6 +611,73 @@
       this.syncToTextarea();
     }
 
+    clearInlineFormatting() {
+      const range = this.restoreSelection();
+      if (!range) {
+        return;
+      }
+
+      if (range.collapsed) {
+        this.getInlineFormatAncestors(range.startContainer).forEach((node) => unwrapNode(node));
+      } else {
+        const hasInlineFormat = Array.from(this.surface.querySelectorAll(INLINE_FORMAT_SELECTOR))
+          .some((node) => range.intersectsNode(node));
+        if (!hasInlineFormat) {
+          return;
+        }
+
+        const startBlock = this.closestBlock(range.startContainer);
+        const endBlock = this.closestBlock(range.endContainer);
+        const fragment = range.extractContents();
+        Array.from(fragment.querySelectorAll(INLINE_FORMAT_SELECTOR)).forEach((node) => unwrapNode(node));
+        const insertedNodes = Array.from(fragment.childNodes);
+
+        if (startBlock !== endBlock) {
+          [startBlock, endBlock].forEach((block) => this.removeEmptyBoundaryBlock(block));
+        }
+
+        range.insertNode(fragment);
+
+        if (insertedNodes.length > 0) {
+          const nextRange = document.createRange();
+          nextRange.setStartBefore(insertedNodes[0]);
+          nextRange.setEndAfter(insertedNodes[insertedNodes.length - 1]);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(nextRange);
+          this.state.savedRange = nextRange.cloneRange();
+        }
+      }
+
+      this.normalizeStructure();
+      this.syncToTextarea();
+    }
+
+    getInlineFormatAncestors(node) {
+      const formats = [];
+      let current = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+
+      while (current && current !== this.surface) {
+        if (current.matches && current.matches(INLINE_FORMAT_SELECTOR)) {
+          formats.push(current);
+        }
+        current = current.parentNode;
+      }
+
+      return formats;
+    }
+
+    removeEmptyBoundaryBlock(block) {
+      if (!block || block === this.surface || !block.isConnected || ["TD", "TH"].includes(block.tagName)) {
+        return;
+      }
+
+      const hasContent = block.textContent.trim() !== "" || block.querySelector("br, img, table");
+      if (!hasContent) {
+        block.remove();
+      }
+    }
+
     applyBlock(tagName) {
       const range = this.restoreSelection();
       if (!range) {
@@ -720,28 +808,40 @@
     insertTable() {
       const rows = clampInteger(this.tableRowsInput.value, 1, 20, 2);
       const cols = clampInteger(this.tableColsInput.value, 1, 12, 2);
+      const hasHeader = this.tableHeaderInput.checked;
+      const captionText = this.tableCaptionInput.value.trim();
       const table = document.createElement("table");
+      const thead = hasHeader ? document.createElement("thead") : null;
       const tbody = document.createElement("tbody");
 
       this.setStyleDeclaration(table, "width", "100%");
       this.setStyleDeclaration(table, "border-collapse", "collapse");
 
+      if (captionText) {
+        const caption = document.createElement("caption");
+        caption.textContent = captionText;
+        table.appendChild(caption);
+      }
+
       for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+        const isHeaderRow = hasHeader && rowIndex === 0;
         const row = document.createElement("tr");
         for (let colIndex = 0; colIndex < cols; colIndex += 1) {
-          const cell = document.createElement(rowIndex === 0 ? "th" : "td");
-          // cell.textContent = rowIndex === 0 ? `標題 ${colIndex + 1}` : "內容";
-          if (rowIndex === 0) {
+          const cell = document.createElement(isHeaderRow ? "th" : "td");
+          if (isHeaderRow) {
             cell.textContent = `標題 ${colIndex + 1}`;
           } else {
-            cell.style.textAlign = 'center';
+            cell.style.textAlign = "center";
             cell.textContent = "內容";
           }
           row.appendChild(cell);
         }
-        tbody.appendChild(row);
+        (isHeaderRow ? thead : tbody).appendChild(row);
       }
 
+      if (thead) {
+        table.appendChild(thead);
+      }
       table.appendChild(tbody);
       this.insertNode(table);
       this.insertNode(document.createElement("p"));
@@ -879,6 +979,7 @@
       const widthValue = readPercentWidth(cell) || estimateCellWidth(cell);
       this.cellWidthRange.value = widthValue;
       this.cellWidthNumber.value = widthValue;
+      this.cellTableCaptionInput.value = this.getTableCaption(cell.closest("table"));
     }
 
     clearCellSelection() {
@@ -887,6 +988,7 @@
       }
       this.state.selectedCell = null;
       this.cellTools.hidden = true;
+      this.cellTableCaptionInput.value = "";
     }
 
     resizeSelectedCell(value) {
@@ -911,6 +1013,38 @@
       cell.style.removeProperty("width");
       this.cellWidthRange.value = estimateCellWidth(cell);
       this.cellWidthNumber.value = estimateCellWidth(cell);
+      this.syncSelectedCellToTextarea();
+    }
+
+    getTableCaption(table) {
+      if (!table) {
+        return "";
+      }
+
+      const caption = Array.from(table.children).find((child) => child.tagName === "CAPTION");
+      return caption ? caption.textContent : "";
+    }
+
+    updateSelectedTableCaption(value) {
+      const cell = this.state.selectedCell;
+      const table = cell ? cell.closest("table") : null;
+      if (!table) {
+        return;
+      }
+
+      const captionText = String(value || "").trim();
+      let caption = Array.from(table.children).find((child) => child.tagName === "CAPTION");
+
+      if (captionText) {
+        if (!caption) {
+          caption = document.createElement("caption");
+          table.insertBefore(caption, table.firstChild);
+        }
+        caption.textContent = captionText;
+      } else if (caption) {
+        caption.remove();
+      }
+
       this.syncSelectedCellToTextarea();
     }
 
@@ -1222,7 +1356,7 @@
     }
 
     getBookmarkBlocks() {
-      const blocks = Array.from(this.surface.querySelectorAll("p, h1, h2, h3, h4, blockquote, li, td, th"));
+      const blocks = Array.from(this.surface.querySelectorAll(BLOCK_SELECTOR));
       return blocks.length > 0 ? blocks : [this.surface];
     }
 
